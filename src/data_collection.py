@@ -236,18 +236,29 @@ class SteamDataCollector:
         return owned_games
 
 def main():
-    """Main execution function"""
+    """Main execution function - Collect ALL user games with full enrichment"""
     if not STEAM_API_KEY or not STEAM_ID:
         print("Error: Please set STEAM_API_KEY and STEAM_ID in your .env file")
         return
     
     collector = SteamDataCollector(STEAM_API_KEY, STEAM_ID)
-    data = collector.collect_all_data()
     
-    print("\nData collection complete!")
-    print(f"Owned games: {len(data['owned_games'])} records")
-    print(f"Reviews: {len(data['reviews'])} records")
-    print(f"Wishlist: {len(data['wishlist'])} records")
+    # Collect user library WITH enrichment (metadata + reviews for all games)
+    print("🎮 Collecting ALL your games with full metadata and reviews...")
+    print("⚠️  This will take a while! (~3 seconds per game)")
+    
+    library = collector.collect_user_library(enrich=True)
+    
+    if not library.empty:
+        print("\n" + "="*60)
+        print("✅ DATA COLLECTION COMPLETE!")
+        print("="*60)
+        print(f"📊 Total games collected: {len(library)}")
+        print(f"💾 Saved to: data/owned_games_enriched.csv")
+        print(f"\n🎯 Top 5 most played:")
+        print(library.nlargest(5, 'playtime_forever')[['name', 'playtime_forever', 'genres']])
+    else:
+        print("❌ Failed to collect data")
 
 if __name__ == "__main__":
     main()
