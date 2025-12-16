@@ -61,6 +61,12 @@ GameRecMLProject/
 python src/data_collection.py
 ```
 
+### 1.1 Collect Steam Catalog Data
+```bash
+python src/get_detailed_catalog.py
+```
+**NOTE**: This step may take a while as it fetches detailed information for all Steam games. Steam API has rate limits, so please be patient.
+
 ### 2. Train the Model
 Open and run the notebook:
 ```bash

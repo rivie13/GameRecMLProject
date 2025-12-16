@@ -13,22 +13,22 @@ Build a machine learning system that recommends Steam games based on your gaming
 
 ### 1.1 Data Collection (Confirmed Working APIs ✅)
 **User Data** (Steam Web API - requires API key):
-- [ ] Set up Steam API integration
-- [ ] Collect user's owned games library (`GetOwnedGames`)
-- [ ] Get playtime data (total hours per game)
+- [x] Set up Steam API integration
+- [x] Collect user's owned games library (`GetOwnedGames`)
+- [x] Get playtime data (total hours per game)
 - [ ] Get recently played games (last 2 weeks)
 
 **Game Catalog** (No API key needed):
-- [ ] Get list of all Steam games (~50-70k games)
+- [x] Get list of all Steam games (~50-70k games)
   - Use SteamSpy API: `https://steamspy.com/api.php`
   - Or use community-maintained dataset
-- [ ] Fetch game metadata for each game (Store API):
+- [x] Fetch game metadata for each game (Store API):
   - Name, description
   - Genres & categories
   - Developers/publishers
   - Release date, price
   - Metacritic score
-- [ ] Get review sentiment per game:
+- [x] Get review sentiment per game:
   - API: `https://store.steampowered.com/appreviews/{appid}?json=1`
   - Returns: "Overwhelmingly Positive", "Mostly Positive", "Mixed", etc.
   - Total positive/negative counts
@@ -36,19 +36,19 @@ Build a machine learning system that recommends Steam games based on your gaming
 **Status**: All APIs confirmed working (tested Dec 2025)
 
 ### 1.2 Data Analysis & Exploration
-- [ ] Load user's library with playtime
-- [ ] Identify engagement levels:
+- [x] Load user's library with playtime
+- [x] Identify engagement levels:
   - **Loved**: 50+ hours
   - **Played**: 5-50 hours
   - **Tried**: 0-5 hours
   - **Unplayed**: 0 hours
-- [ ] Analyze user's top games (loved category)
-- [ ] Extract preference patterns:
+- [x] Analyze user's top games (loved category)
+- [x] Extract preference patterns:
   - Most-played genres
   - Preferred categories (single-player, multiplayer, etc.)
   - Review sentiment preferences (do they like highly-rated games?)
   - Release date preferences (new vs old games)
-- [ ] Visualize gaming profile in Jupyter notebook
+- [x] Visualize gaming profile in Jupyter notebook
 
 **Approach**: Use Jupyter notebook for exploratory analysis
 
@@ -63,10 +63,11 @@ Build a machine learning system that recommends Steam games based on your gaming
 
 2. **Game metadata** (from Store API):
    - Genres (Action, RPG, Strategy, etc.)
+   - Tags (More descriptive labels when using user generated tags from SteamSpy)
    - Categories (Single-player, Multiplayer, Co-op, etc.)
    - Review sentiment (Positive/Mixed/Negative)
-   - Metacritic score
-   - Release year
+   - Metacritic score (not avaliable?)
+   - Release year (not used currently, but can be in future)
 
 **Recommendation logic**:
 1. Identify user's "loved" games (50+ hours played)
