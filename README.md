@@ -1,14 +1,13 @@
 # Steam Game Recommendation System
 
-A machine learning project that recommends new Steam games based on your library, playtime, reviews, and wishlist.
-
+A machine learning project that recommends new Steam games based on your library, playtime, genres/tags, and reviews.
 ## 🎮 Project Overview
 
 This project analyzes your Steam gaming data to provide personalized game recommendations:
 - **Game Library**: Games you own
 - **Playtime**: Hours spent on each game
-- **Reviews**: Your ratings and reviews
-- **Wishlist**: Games you're interested in
+- **Reviews**: Overall player ratings for each game
+- **Genres/Tags**: Game categories and tags
 
 ## 📁 Project Structure
 
@@ -19,6 +18,8 @@ GameRecMLProject/
 ├── notebooks/         # Jupyter notebooks for experimentation
 ├── src/               # Source code
 │   ├── data_collection.py    # Steam API data fetching
+│   ├── get_detailed_catalog.py # Fetch detailed game info from Steam Store API and steam spy API
+│   ├── test_collection.py   # Test data collection scripts
 │   ├── model.py              # ML model implementation
 │   └── app.py                # Web application
 ├── requirements.txt   # Python dependencies
@@ -78,6 +79,7 @@ Run the application:
 ```bash
 python src/app.py
 ```
+**NOTE**: No web application is deployed or coded yet. This will be in a future update.
 
 ## 🔮 Future Plans
 - Deploy as a web application
