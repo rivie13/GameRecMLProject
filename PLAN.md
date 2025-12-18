@@ -3,14 +3,23 @@
 ## 📋 Project Overview
 Build a **hybrid ML + content-based recommendation system** that recommends Steam games based on your gaming library, playtime data, and game metadata from Steam's public APIs.
 
-**Current Status**: Content-based system ✅ working | ML layer 🚧 in development
+**Current Status**: 
+- ✅ Content-based system working
+- ✅ ML models trained and generating predictions
+- 🚧 **NEXT**: Combine ML + Content-Based into hybrid system
 
 **Goal**: 
-- **Phase 1**: Single-user hybrid system (ML + content-based + user preferences)
+- **Phase 1**: Single-user hybrid system (ML + content-based + user preferences) ← **WE ARE HERE**
 - **Phase 2**: Deploy web app for multi-user data collection
 - **Phase 3**: Add collaborative filtering once we have 100+ users
 
 **Approach**: 100% API-based, no scraping, no ToS violations.
+
+**Recent Progress** (Dec 18, 2025):
+- ✅ Completed feature engineering (400+ features)
+- ✅ Trained Random Forest + XGBoost models
+- ✅ Generated ML-based recommendations with diversity filter
+- 🎯 **Ready to build hybrid system combining both approaches**
 
 ---
 
@@ -191,7 +200,7 @@ Build a **hybrid ML + content-based recommendation system** that recommends Stea
    - Positive percentage + logarithmic volume boost
    - Prevents popularity bias (not 50% of score)
 
-**Next: Add ML Layer** 🚧 (see Phase 2 below)
+**Next: Integrate ML with Content-Based** 🚧 (see Phase 2 below)
 
 **Output**: 
 - Top 20 recommended games
@@ -201,63 +210,124 @@ Build a **hybrid ML + content-based recommendation system** that recommends Stea
 
 ---
 
-## 🎯 Phase 2: Machine Learning Layer (IN PROGRESS 🚧)
+### 1.4 Machine Learning Foundation - COMPLETE ✅
 
-### 2.1 Tag-Weighted ML System (Current Goal)
+**Implemented in**: `notebooks/feature_engineering.ipynb`
+
+**Feature Engineering Completed**:
+- ✅ **Engagement Score** (target variable): 0-100 scale combining:
+  - Playtime score (0-60 points, log-normalized)
+  - Recency score (0-30 points, based on last played)
+  - Achievement engagement (0-10 points)
+  
+- ✅ **Tag Features** (~180+ features):
+  - Raw tag vote counts from Steam/SteamSpy
+  - Playtime-weighted interaction features (tag_votes × playtime_weight)
+  - Filters out NSFW and meta tags
+  
+- ✅ **Genre Features** (~20 features):
+  - Multi-hot encoding for all genres
+  - Allows model to learn genre preferences
+  
+- ✅ **Review Features** (2 features):
+  - Total review count (log-normalized)
+  - Positive review ratio (0-1)
+  
+- ✅ **Catalog Engagement Features** (2 features):
+  - Average playtime from Steam community
+  - Median playtime from Steam community
+
+**Model Training Completed**:
+- ✅ Random Forest Regressor (150 trees, max_depth=20)
+- ✅ XGBoost tested (if available)
+- ✅ Train/test split: 80/20
+- ✅ Feature scaling with StandardScaler
+- ✅ Model performance evaluated (R², RMSE, MAE)
+- ✅ Feature importance analysis
+
+**Generated Recommendations**:
+- ✅ `data/ml_recommendations.csv` - Pure ML predictions
+- ✅ `data/ml_recommendations_v2_diverse.csv` - Enhanced with diversity filter
+- ✅ `data/feature_correlations.csv` - Feature analysis
+- ✅ Saved train/test splits for reproducibility
+
+**Key Insights from Feature Analysis**:
+- Interaction features (playtime-weighted tags) are most predictive
+- Catalog engagement metrics help distinguish high-quality games
+- Genre features add context beyond tags
+- Review quality validates community sentiment
+
+---
+
+## 🎯 Phase 2: Machine Learning Layer (FEATURE ENGINEERING COMPLETE ✅)
+
+### 2.1 Tag-Weighted ML System (Current Status: Training Complete, Ready for Hybrid)
 **Objective**: Let ML learn patterns from YOUR playtime that might not be obvious
 
-**Implementation Plan** (Weeks 1-2):
+**Status Update** (Completed in feature_engineering.ipynb):
 
-#### **Week 1: Feature Engineering & Model Training**
-- [ ] **Extract tag features from owned games**:
-  - Tag vote counts (e.g., {"FPS": 12000, "Open World": 8000})
-  - Your playtime weights (e.g., {"FPS": 500h, "Open World": 300h})
-  - Interaction features: tag_vote × user_playtime_weight
-  - Genre overlap scores
-  - Review quality metrics
+#### **✅ Week 1: Feature Engineering & Model Training - COMPLETE**
+- [x] **Extract tag features from owned games**:
+  - ✅ Tag vote counts extracted from SteamSpy tags
+  - ✅ Playtime weights calculated (log-normalized playtime)
+  - ✅ Interaction features: tag_votes × playtime_weight
+  - ✅ Genre multi-hot encoding added
+  - ✅ Review quality metrics (positive_ratio, total_reviews)
+  - ✅ Catalog engagement features (avg_playtime, median_playtime)
   
-- [ ] **Prepare training data**:
-  - X = Feature vectors for each owned game
-  - y = Engagement score (0-1) OR playtime category (0-3)
-  - Train/test split: 80/20
-  - NO filtering of training data - use ALL owned games
+- [x] **Prepare training data**:
+  - ✅ X = Feature matrix with ~400+ features (tags + interactions + genres + reviews)
+  - ✅ y = Engagement score (0-100 scale: playtime + recency + achievements)
+  - ✅ Train/test split: 80/20 with random shuffle
+  - ✅ NO filtering of training data - used ALL owned games
+  - ✅ Feature scaling with StandardScaler
 
-- [ ] **Train ML model**:
-  - Start with Random Forest Regressor
-  - Try XGBoost if Random Forest underperforms
-  - Hyperparameter tuning with cross-validation
-  - Feature importance analysis
+- [x] **Train ML models**:
+  - ✅ Random Forest Regressor (150 trees, depth=20)
+  - ✅ XGBoost attempted (if installed)
+  - ✅ Enhanced model with genre + review features
+  - ✅ Feature importance analysis completed
 
-- [ ] **Evaluation metrics**:
-  - RMSE (Root Mean Square Error) for engagement prediction
-  - Accuracy for category prediction (loved/played/tried)
-  - Precision@K (of top 20 recommendations, how many are relevant?)
-  - Compare ML vs. Content-Based vs. Hybrid
+- [x] **Evaluation metrics**:
+  - ✅ RMSE and MAE calculated for train/test sets
+  - ✅ R² scores for model performance
+  - ✅ Visual plots (predicted vs actual)
+  - ✅ Feature correlation analysis saved to feature_correlations.csv
 
-#### **Week 2: Integration & Hybrid System**
+#### **🚧 Week 2: Integration & Hybrid System - CURRENT TASK**
 - [ ] **Integrate ML into recommendation pipeline**:
-  - Add ML prediction layer (Stage 2 in architecture)
-  - Normalize ML scores to 0-1 range
-  - Combine with content-based scores:
+  - [ ] Create new notebook: `hybrid_recommendations.ipynb`
+  - [ ] Load trained model (Random Forest or XGBoost)
+  - [ ] Apply ML predictions to Steam catalog (non-owned games)
+  - [ ] Normalize ML scores to 0-100 range
+  - [ ] Load existing content-based scoring system
+  - [ ] Combine with content-based scores:
     - `final_score = 0.35*ML + 0.35*Content + 0.20*Prefs + 0.10*Reviews`
 
 - [ ] **A/B Testing Framework**:
-  - Generate recommendations with 3 approaches:
+  - [ ] Generate recommendations with 3 approaches:
     - Pure content-based (current system)
-    - Pure ML
-    - Hybrid (combined)
-  - Compare results manually
-  - Tune weights based on what works best
+    - Pure ML (predictions only)
+    - Hybrid (combined weighted)
+  - [ ] Compare top 20 results side-by-side
+  - [ ] Analyze overlap and differences
+  - [ ] Tune weights based on what works best
 
-- [ ] **Validation**:
-  - Test on held-out games (games you own but didn't train on)
-  - Can the model predict which games you played 50+ hours?
-  - Does hybrid beat content-based alone?
+- [ ] **Validation & Analysis**:
+  - [ ] Test on held-out games (20% test set)
+  - [ ] Can the model predict which games you played 50+ hours?
+  - [ ] Does hybrid beat content-based alone?
+  - [ ] Add diversity filter to avoid too many similar games
+  - [ ] Document which approach gives best recommendations
 
-**Expected Outcome**:
-- ML model that predicts engagement score with 70-80% accuracy
-- Hybrid system that gives better recommendations than content-based alone
-- Feature importance analysis showing what patterns ML found
+**Completed So Far**:
+- ✅ ML model trained with R² score on test set
+- ✅ Feature importance analysis showing interaction features matter most
+- ✅ Catalog predictions generated (ml_recommendations.csv)
+- ✅ Enhanced model with genre/review features (ml_recommendations_v2_diverse.csv)
+- ✅ Diversity filter implemented (max 3 per tag, max 1 Souls-like) [can be any tag/genre filtered later]
+
+**Ready to Integrate**: All ML components trained, now need to combine with content-based system
 
 ---
 
@@ -542,18 +612,18 @@ feedback (user_id, appid, action, timestamp)  -- CRITICAL for learning!
 ## 🚀 Immediate Next Steps (Week 1)
 
 ### **Day 1-2: Feature Engineering**
-1. [ ] Create new notebook section for ML
-2. [ ] Extract tag vote features from owned_games
-3. [ ] Create interaction features (tag_vote × playtime_weight)
-4. [ ] Prepare X (features) and y (engagement_score) matrices
-5. [ ] Split into train/test sets (80/20)
+1. [x] Create new notebook section for ML
+2. [x] Extract tag vote features from owned_games
+3. [x] Create interaction features (tag_vote × playtime_weight)
+4. [x] Prepare X (features) and y (engagement_score) matrices
+5. [x] Split into train/test sets (80/20)
 
 ### **Day 3-4: Model Training**
-1. [ ] Train Random Forest Regressor
-2. [ ] Evaluate with RMSE, MAE, R²
-3. [ ] Analyze feature importance
-4. [ ] Compare predictions to actual playtime
-5. [ ] Tune hyperparameters if needed
+1. [x] Train Random Forest Regressor
+2. [x] Evaluate with RMSE, MAE, R²
+3. [x] Analyze feature importance
+4. [x] Compare predictions to actual playtime
+5. [x] Tune hyperparameters if needed
 
 ### **Day 5-7: Integration & Testing**
 1. [ ] Create `EngagementPredictor` class
@@ -635,9 +705,11 @@ hard_exclude_tags = ['Horror', 'Survival Horror']  # Never show me these, exampl
 - **Private profiles**: User must have public profile for data collection
 
 **🚧 In Progress**:
-- [ ] ML prediction layer (tag-weighted learning)
+- [x] ML prediction layer (tag-weighted learning) - ✅ COMPLETE
+- [ ] **Hybrid system integration** ← **CURRENT TASK**
+- [ ] A/B comparison (Pure ML vs Pure Content vs Hybrid)
 - [ ] User preference system (soft boosts/penalties)
-- [ ] Evaluation metrics (precision@K, RMSE)
+- [ ] Evaluation metrics validation
 - [ ] Web application for deployment
 
 **🔮 Future Enhancements** (after web deployment):
