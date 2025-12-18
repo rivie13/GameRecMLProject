@@ -34,3 +34,4 @@ models/*.joblib
 # OS
 .DS_Store
 Thumbs.db
+data/cache/release_dates_checkpoint.json
