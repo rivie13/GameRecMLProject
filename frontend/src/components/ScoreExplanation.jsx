@@ -16,8 +16,20 @@ function ScoreExplanation({ game, mode }) {
     )
   }
 
-  // Calculate weights based on mode
+  // Use actual weights from the backend if available, otherwise use mode-based defaults
   const getWeights = () => {
+    // If game has actual weights from backend, use those
+    if (game.weight_ml !== undefined && game.weight_content !== undefined && 
+        game.weight_preference !== undefined && game.weight_review !== undefined) {
+      return { 
+        ml: game.weight_ml, 
+        content: game.weight_content, 
+        preference: game.weight_preference, 
+        review: game.weight_review 
+      }
+    }
+    
+    // Otherwise fall back to mode-based defaults
     switch (mode) {
       case 'hybrid':
         return { ml: 0.35, content: 0.35, preference: 0.20, review: 0.10 }
@@ -41,7 +53,7 @@ function ScoreExplanation({ game, mode }) {
       </div>
 
       <div className="explanation-components">
-        {weights.ml > 0 && game.ml_score !== undefined && (
+        {weights.ml > 0 && (game.ml_score !== undefined && game.ml_score !== null) && (
           <div className="score-component">
             <div className="component-header">
               <span className="component-icon">🧠</span>

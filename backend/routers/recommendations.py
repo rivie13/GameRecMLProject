@@ -211,6 +211,10 @@ async def get_recommendations(
             "content_score": round(float(game.get('content_score', 0)), 2),
             "preference_score": round(float(game.get('preference_score', 0)), 2),
             "review_score": round(float(game.get('review_score', 0)), 2),
+            "weight_ml": round(float(game.get('weight_ml_used', 0.35)), 2),
+            "weight_content": round(float(game.get('weight_content_used', 0.35)), 2),
+            "weight_preference": round(float(game.get('weight_preference_used', 0.20)), 2),
+            "weight_review": round(float(game.get('weight_review_used', 0.10)), 2),
             "positive_reviews": int(game.get('positive', 0)),
             "negative_reviews": int(game.get('negative', 0)),
             "review_percentage": round(

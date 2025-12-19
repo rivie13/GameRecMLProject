@@ -107,6 +107,10 @@ function Recommendations() {
         content_score: game.content_score,
         preference_score: game.preference_score,
         review_component_score: game.review_score,
+        weight_ml: game.weight_ml,
+        weight_content: game.weight_content,
+        weight_preference: game.weight_preference,
+        weight_review: game.weight_review,
       }))
       
       console.log('[RECS] Raw response:', response.data)
