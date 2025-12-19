@@ -1,5 +1,7 @@
 function Landing() {
   const handleLogin = () => {
+    // Redirect to backend Steam login endpoint
+    // Backend will redirect to Steam, then back to our callback
     window.location.href = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/auth/steam/login`
   }
 
@@ -7,94 +9,96 @@ function Landing() {
     <div className="landing-page">
       <section className="hero">
         <div className="hero-content">
+          <div className="hero-badge">🎮 BETA</div>
           <h1 className="hero-title">
-            Discover Your Next Favorite
-            <span className="hero-highlight"> Steam Game</span>
+            Tired of Scrolling Through
+            <span className="hero-highlight"> 200 Games</span>
+            <br />You Never Play?
           </h1>
           <p className="hero-subtitle">
-            AI-powered recommendations based on your gaming library, playtime, and preferences
+            Stop staring at your Steam library like it's a Netflix queue. Get actual recommendations based on what you <em>actually play</em>.
           </p>
           <button onClick={handleLogin} className="btn btn-primary btn-large">
-            <span>Login with Steam</span>
+            <span>🎮 Connect Steam Library</span>
           </button>
           <p className="hero-note">
-            We only access your public Steam library data - no passwords stored
+            No BS. Just your public library data. No passwords, no sketchy stuff.
           </p>
         </div>
       </section>
 
       <section className="features">
-        <h2 className="section-title">How It Works</h2>
+        <h2 className="section-title">How This Works</h2>
         <div className="features-grid">
           <div className="feature-card">
             <div className="feature-icon">🔐</div>
-            <h3 className="feature-title">1. Connect Steam</h3>
+            <h3 className="feature-title">1. Link Your Steam</h3>
             <p className="feature-text">
-              Securely connect your Steam account using Steam OpenID authentication
+              Quick Steam login. We grab your library and playtime data (the stuff that's already public anyway).
             </p>
           </div>
 
           <div className="feature-card">
-            <div className="feature-icon">🤖</div>
-            <h3 className="feature-title">2. AI Analysis</h3>
+            <div className="feature-icon">🧠</div>
+            <h3 className="feature-title">2. ML Does Its Thing</h3>
             <p className="feature-text">
-              Our ML model analyzes your playtime patterns, favorite genres, and gaming preferences
+              The algorithm learns what you actually play vs what collects dust. It's trained on YOUR habits, not some generic taste profile.
             </p>
           </div>
 
           <div className="feature-card">
             <div className="feature-icon">🎯</div>
-            <h3 className="feature-title">3. Get Recommendations</h3>
+            <h3 className="feature-title">3. Get Actual Recs</h3>
             <p className="feature-text">
-              Receive personalized game recommendations with detailed explanations
+              Not just "popular games" or "new releases." Games that match YOUR vibe, with scores that explain why.
             </p>
           </div>
         </div>
       </section>
 
       <section className="features-showcase">
-        <h2 className="section-title">What Makes Us Different</h2>
+        <h2 className="section-title">Why This Doesn't Suck</h2>
         <div className="showcase-grid">
           <div className="showcase-item">
-            <div className="showcase-icon">✅</div>
-            <h3>ML-Powered Predictions</h3>
-            <p>Machine learning models trained on your playtime behavior patterns</p>
+            <div className="showcase-icon">🧠</div>
+            <h3>Learns Your Taste</h3>
+            <p>ML trained on YOUR playtime, not generic "most popular" garbage</p>
           </div>
 
           <div className="showcase-item">
-            <div className="showcase-icon">✅</div>
-            <h3>Content-Based Matching</h3>
-            <p>Find games similar to your most-loved titles</p>
+            <div className="showcase-icon">🎮</div>
+            <h3>"More Like This" That Works</h3>
+            <p>Finds games similar to stuff you've sunk 100+ hours into</p>
           </div>
 
           <div className="showcase-item">
-            <div className="showcase-icon">✅</div>
-            <h3>Hybrid Scoring System</h3>
-            <p>Combines ML predictions, content similarity, reviews, and preferences</p>
+            <div className="showcase-icon">🔥</div>
+            <h3>Hybrid Algorithm</h3>
+            <p>Combines ML, similarity matching, community reviews, and your preferences</p>
           </div>
 
           <div className="showcase-item">
-            <div className="showcase-icon">✅</div>
-            <h3>Visual Analytics</h3>
-            <p>Rich visualizations of your gaming profile and preferences</p>
+            <div className="showcase-icon">📊</div>
+            <h3>See Your Gaming Profile</h3>
+            <p>Charts showing your genre preferences, playtime patterns, and what makes you tick</p>
           </div>
 
           <div className="showcase-item">
-            <div className="showcase-icon">✅</div>
-            <h3>Customizable Filters</h3>
-            <p>Fine-tune recommendations with genre/tag boosts and exclusions</p>
+            <div className="showcase-icon">⚙️</div>
+            <h3>Tune It Yourself</h3>
+            <p>Boost genres you like, exclude stuff you hate (looking at you, Battle Royales)</p>
           </div>
 
           <div className="showcase-item">
-            <div className="showcase-icon">✅</div>
-            <h3>Detailed Explanations</h3>
-            <p>Understand why each game was recommended for you</p>
+            <div className="showcase-icon">💡</div>
+            <h3>Know Why It's Recommended</h3>
+            <p>Detailed breakdown of match scores - no black box BS</p>
           </div>
         </div>
       </section>
 
       <section className="tech-stack">
-        <h2 className="section-title">Built With</h2>
+        <h2 className="section-title">The Nerdy Stuff</h2>
         <div className="tech-list">
           <div className="tech-item">Python</div>
           <div className="tech-item">FastAPI</div>
@@ -106,14 +110,15 @@ function Landing() {
           <div className="tech-item">Vite</div>
         </div>
         <p className="tech-note">
-          This is an educational ML portfolio project demonstrating recommendation systems and full-stack development.
+          Built as a portfolio project to learn ML/recommendation systems. Open source, not affiliated with Steam.
         </p>
       </section>
 
       <section className="cta">
-        <h2 className="cta-title">Ready to Discover New Games?</h2>
+        <h2 className="cta-title">Stop Buying Games You Never Play</h2>
+        <p className="cta-subtitle">Let's find something you'll actually finish.</p>
         <button onClick={handleLogin} className="btn btn-primary btn-large">
-          <span>Get Started Now</span>
+          <span>🎮 Let's Go</span>
         </button>
       </section>
     </div>

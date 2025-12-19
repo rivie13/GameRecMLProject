@@ -35,7 +35,7 @@ async def steam_login():
     """
     Initiate Steam OpenID login.
     
-    Returns redirect URL to Steam login page.
+    Redirects user directly to Steam login page.
     User will be redirected back to /api/auth/steam/callback after login.
     """
     # Generate callback URL (where Steam will redirect after login)
@@ -44,10 +44,8 @@ async def steam_login():
     # Get Steam OpenID login URL
     login_url = steam_api.get_openid_login_url(callback_url)
     
-    return {
-        "login_url": login_url,
-        "message": "Redirect user to this URL to initiate Steam login"
-    }
+    # Redirect directly to Steam
+    return RedirectResponse(url=login_url, status_code=302)
 
 
 @router.get("/steam/callback")
@@ -85,8 +83,12 @@ async def steam_callback(request: Request, db: Session = Depends(get_db)):
             detail="Invalid Steam ID format"
         )
     
+    print(f"[AUTH] Steam OpenID verified - Steam ID from OpenID: {steam_id}")
+    
     # Fetch user profile from Steam API
     player_data = await steam_api.get_player_summary(steam_id)
+    
+    print(f"[AUTH] Steam API returned player data: {player_data}")
     
     if not player_data:
         raise HTTPException(
@@ -99,11 +101,13 @@ async def steam_callback(request: Request, db: Session = Depends(get_db)):
     
     if user:
         # Update existing user
+        print(f"[AUTH] Found existing user in DB: steam_id={user.steam_id}, username={user.username}")
         user.username = player_data["username"]
         user.profile_url = player_data["profile_url"]
         user.avatar_url = player_data["avatar_url"]
     else:
         # Create new user
+        print(f"[AUTH] Creating NEW user with steam_id={steam_id}")
         user = User(
             steam_id=steam_id,
             username=player_data["username"],
@@ -115,6 +119,8 @@ async def steam_callback(request: Request, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
     
+    print(f"[AUTH] After commit - user.steam_id={user.steam_id}, user.profile_url={user.profile_url}")
+    
     # Generate JWT token
     access_token_expires = timedelta(minutes=settings.jwt_access_token_expire_minutes)
     access_token = create_access_token(
@@ -122,13 +128,30 @@ async def steam_callback(request: Request, db: Session = Depends(get_db)):
         expires_delta=access_token_expires
     )
     
-    # In production, redirect to frontend with token
-    # For now, return JSON response
-    return LoginResponse(
-        user=UserResponse.model_validate(user),
-        access_token=access_token,
-        token_type="bearer"
-    )
+    # Redirect to frontend callback with token and user data
+    # Frontend will parse the query params and store in localStorage
+    from urllib.parse import urlencode
+    import json
+    
+    user_data = {
+        "steam_id": str(user.steam_id),  # Send as string to avoid JavaScript number precision loss
+        "username": user.username,
+        "profile_url": user.profile_url,
+        "avatar_url": user.avatar_url
+    }
+    
+    print(f"[AUTH] Sending user_data to frontend: {user_data}")
+    
+    query_params = urlencode({
+        "token": access_token,
+        "user": json.dumps(user_data)
+    })
+    
+    redirect_url = f"{settings.frontend_url}/auth/callback?{query_params}"
+    
+    print(f"[AUTH] Redirecting to: {redirect_url[:100]}...")
+    
+    return RedirectResponse(url=redirect_url, status_code=302)
 
 
 @router.post("/logout")

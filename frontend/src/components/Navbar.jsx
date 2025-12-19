@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { api } from '../api/client'
+import apiClient from '../api/client'
 import toast from 'react-hot-toast'
 
 function Navbar() {
@@ -10,38 +10,39 @@ function Navbar() {
 
   useEffect(() => {
     checkAuth()
+    
+    // Listen for storage changes (e.g., login in another tab)
+    const handleStorageChange = () => {
+      checkAuth()
+    }
+    window.addEventListener('storage', handleStorageChange)
+    
+    return () => window.removeEventListener('storage', handleStorageChange)
   }, [])
 
-  const checkAuth = async () => {
+  const checkAuth = () => {
     const token = localStorage.getItem('access_token')
-    if (!token) {
-      setIsLoading(false)
-      return
+    const userStr = localStorage.getItem('user')
+    
+    if (token && userStr) {
+      try {
+        setUser(JSON.parse(userStr))
+      } catch (error) {
+        console.error('Failed to parse user data:', error)
+        localStorage.removeItem('user')
+      }
     }
-
-    try {
-      const response = await api.auth.getMe()
-      setUser(response.data)
-    } catch (error) {
-      console.error('Auth check failed:', error)
-      localStorage.removeItem('access_token')
-      localStorage.removeItem('user')
-    } finally {
-      setIsLoading(false)
-    }
+    setIsLoading(false)
   }
 
   const handleLogout = async () => {
     try {
-      await api.auth.logout()
-      localStorage.removeItem('access_token')
-      localStorage.removeItem('user')
-      setUser(null)
-      navigate('/')
+      await apiClient.post('/api/auth/logout')
       toast.success('Logged out successfully')
     } catch (error) {
       console.error('Logout failed:', error)
-      // Still clear local storage even if API call fails
+    } finally {
+      // Always clear local storage
       localStorage.removeItem('access_token')
       localStorage.removeItem('user')
       setUser(null)

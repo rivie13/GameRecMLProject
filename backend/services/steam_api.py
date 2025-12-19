@@ -127,6 +127,7 @@ class SteamAPI:
                 
                 if players:
                     player = players[0]
+                    print(f"[STEAM_API] Raw player data from Steam: steamid={player.get('steamid')}, profileurl={player.get('profileurl')}")
                     return {
                         "steam_id": player.get("steamid"),
                         "username": player.get("personaname"),

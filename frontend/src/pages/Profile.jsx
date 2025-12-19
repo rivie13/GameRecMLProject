@@ -1,35 +1,56 @@
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { api } from '../api/client'
 import toast from 'react-hot-toast'
 
 function Profile() {
   const { steamId } = useParams()
+  const navigate = useNavigate()
   const [profile, setProfile] = useState(null)
   const [stats, setStats] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSyncing, setIsSyncing] = useState(false)
 
   useEffect(() => {
-    fetchProfile()
-    fetchStats()
-  }, [steamId])
+    // Get logged-in user's Steam ID from localStorage
+    const userStr = localStorage.getItem('user')
+    if (!userStr) {
+      toast.error('Please log in first')
+      navigate('/')
+      return
+    }
 
-  const fetchProfile = async () => {
+    const user = JSON.parse(userStr)
+    
+    // If URL steam ID doesn't match logged-in user, redirect to correct profile
+    // Compare as strings since steam_id is stored as string
+    if (steamId && String(steamId) !== String(user.steam_id)) {
+      console.log(`Redirecting from ${steamId} to ${user.steam_id}`)
+      navigate(`/profile/${user.steam_id}`, { replace: true })
+      return
+    }
+
+    fetchProfile(user.steam_id)
+    fetchStats(user.steam_id)
+  }, [steamId, navigate])
+
+  const fetchProfile = async (id) => {
     try {
-      const response = await api.profile.get(steamId)
+      const response = await api.profile.get(id)
       setProfile(response.data)
     } catch (error) {
       console.error('Failed to fetch profile:', error)
+      toast.error('Failed to load profile')
     }
   }
 
-  const fetchStats = async () => {
+  const fetchStats = async (id) => {
     try {
-      const response = await api.profile.getStats(steamId)
+      const response = await api.profile.getStats(id)
       setStats(response.data)
     } catch (error) {
       console.error('Failed to fetch stats:', error)
+      toast.error('Failed to load statistics')
     } finally {
       setIsLoading(false)
     }
