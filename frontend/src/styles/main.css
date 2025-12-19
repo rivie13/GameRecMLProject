@@ -866,6 +866,77 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ============================================
+   VISUALIZATION COMPONENTS
+   ============================================ */
+.chart-container {
+  background-color: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  box-shadow: var(--shadow-md);
+  margin-bottom: var(--spacing-xl);
+  border: 1px solid var(--color-border);
+}
+
+.chart-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-accent-primary);
+  margin-bottom: var(--spacing-md);
+  font-family: 'Rajdhani', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.chart-container p {
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-sm);
+}
+
+/* Tag Cloud Styles */
+.tag-cloud-item {
+  display: inline-block;
+  transition: all var(--transition-base);
+  user-select: none;
+}
+
+.tag-cloud-item:hover {
+  color: var(--color-accent-secondary) !important;
+  transform: scale(1.1);
+  filter: brightness(1.2);
+}
+
+/* Recharts Custom Styles */
+.recharts-wrapper {
+  font-family: 'Inter', sans-serif;
+}
+
+.recharts-cartesian-axis-tick-value {
+  fill: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
+.recharts-legend-item-text {
+  color: var(--color-text-primary) !important;
+  font-weight: 500;
+}
+
+.recharts-tooltip-wrapper {
+  outline: none;
+}
+
+/* Visualization Grid Layout */
+.visualizations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+  gap: var(--spacing-xl);
+  margin-top: var(--spacing-xl);
+}
+
+.visualization-full-width {
+  grid-column: 1 / -1;
+}
+
+/* ============================================
    RESPONSIVE DESIGN
    ============================================ */
 @media (max-width: 768px) {
@@ -895,5 +966,23 @@ h1, h2, h3, h4, h5, h6 {
   
   .stats-overview {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Visualization responsive adjustments */
+  .visualizations-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-container {
+    padding: var(--spacing-md);
+  }
+
+  .chart-title {
+    font-size: 1rem;
+  }
+
+  /* Make horizontal bar charts more readable on mobile */
+  .recharts-wrapper {
+    overflow-x: auto;
   }
 }

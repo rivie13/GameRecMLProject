@@ -7,6 +7,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+import pandas as pd
 
 from database import get_db
 from models import User, UserGame  # type: ignore
@@ -82,6 +83,7 @@ async def get_profile_stats(
         - Top 10 most played games
         - Genre distribution
         - Engagement metrics
+        - Full game data with metadata for charts
     """
     # Authorization
     if current_user.steam_id != steam_id:
@@ -127,6 +129,71 @@ async def get_profile_stats(
     else:
         gaming_style = "Enthusiast"
     
+    # Load catalog metadata for visualization charts
+    from services.recommender import HybridRecommender
+    
+    # Use singleton pattern to get recommender instance
+    try:
+        recommender = HybridRecommender()
+        catalog = recommender.catalog_df
+    except Exception as e:
+        # If recommender fails to load, continue without catalog enrichment
+        import logging
+        logging.getLogger(__name__).warning(f"Failed to load recommender catalog: {e}")
+        catalog = None
+    
+    # Build enriched game list for visualizations
+    enriched_games = []
+    top_genre_playtime = {}
+    
+    # Fetch fresh game names from Steam API for games not in catalog
+    steam_games_cache = {}
+    try:
+        owned_games_data = await steam_api.get_owned_games(steam_id)
+        if owned_games_data:
+            for steam_game in owned_games_data.get("games", []):
+                steam_games_cache[steam_game["appid"]] = steam_game.get("name", f"Game {steam_game['appid']}")
+    except Exception as e:
+        logging.getLogger(__name__).warning(f"Failed to fetch game names from Steam API: {e}")
+    
+    for game in games:
+        # Find game in catalog
+        game_data = catalog[catalog['appid'] == game.appid] if catalog is not None else None
+        
+        if game_data is not None and len(game_data) > 0:
+            game_info = game_data.iloc[0]
+            game_name = game_info.get('name', f"Game {game.appid}")
+            genres = game_info.get('genre_list', [])
+            tags = list(game_info.get('tags_dict', {}).keys()) if isinstance(game_info.get('tags_dict'), dict) else []
+            release_year = game_info.get('release_year') if not pd.isna(game_info.get('release_year')) else None
+            
+            # Track genre playtime for top_genre calculation
+            for genre in genres:
+                top_genre_playtime[genre] = top_genre_playtime.get(genre, 0) + game.playtime_hours
+        else:
+            # Fallback: Try Steam API cache, then fall back to appid
+            game_name = steam_games_cache.get(game.appid, f"Game {game.appid}")
+            genres = []
+            tags = []
+            release_year = None
+        
+        enriched_games.append({
+            "appid": game.appid,
+            "name": game_name,
+            "playtime_hours": round(game.playtime_hours, 2),
+            "playtime_category": game.playtime_category,
+            "engagement_score": round(game.engagement_score, 1) if game.engagement_score else None,
+            "genres": genres,
+            "tags": tags[:20],  # Limit to top 20 tags per game
+            "release_year": int(release_year) if release_year else None
+        })
+    
+    # Calculate top genre by playtime
+    if top_genre_playtime:
+        top_genre = max(top_genre_playtime.items(), key=lambda x: x[1])[0]
+    else:
+        top_genre = "N/A"
+    
     return ProfileStatsResponse(
         steam_id=steam_id,
         total_games=len(games),
@@ -145,8 +212,10 @@ async def get_profile_stats(
             for g in top_games
         ],
         total_playtime_hours=round(total_hours, 1),
-        top_genre="N/A",  # TODO: Calculate from catalog metadata in Week 3
-        gaming_style=gaming_style
+        top_genre=top_genre,
+        gaming_style=gaming_style,
+        games=enriched_games,  # Full game data for visualizations
+        feature_importance=None  # TODO: Load from ML model if available
     )
 
 

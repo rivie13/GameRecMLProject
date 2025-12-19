@@ -2,6 +2,16 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { api } from '../api/client'
 import toast from 'react-hot-toast'
+import {
+  PlaytimeHistogram,
+  TopGamesBar,
+  GenreCountBar,
+  GenrePlaytimeBar,
+  EngagementScatter,
+  FeatureImportanceBar,
+  ReleaseYearTimeline,
+  TagCloud
+} from '../visualizations'
 
 function Profile() {
   const { steamId } = useParams()
@@ -63,14 +73,23 @@ function Profile() {
   const handleSync = async () => {
     setIsSyncing(true)
     try {
-      await api.profile.sync(steamId)
+      // Get user's Steam ID from localStorage
+      const userStr = localStorage.getItem('user')
+      if (!userStr) {
+        toast.error('Please log in first')
+        return
+      }
+      const user = JSON.parse(userStr)
+      const userSteamId = user.steam_id
+
+      await api.profile.sync(userSteamId)
       toast.success('Library synced successfully!')
       // Refresh data
-      fetchProfile()
-      fetchStats()
+      await fetchProfile(userSteamId)
+      await fetchStats(userSteamId)
     } catch (error) {
       console.error('Sync failed:', error)
-      toast.error('Failed to sync library')
+      toast.error(error.response?.data?.detail || 'Failed to sync library')
     } finally {
       setIsSyncing(false)
     }
@@ -120,8 +139,45 @@ function Profile() {
 
           <section className="visualizations-section">
             <h2>Your Gaming Analytics</h2>
-            <p className="section-note">Visualizations coming in Week 3...</p>
-            {/* Visualization components will be added in Week 3 */}
+            <p className="section-note">
+              Deep dive into your gaming patterns and preferences
+            </p>
+            
+            <div className="visualizations-grid">
+              {/* Chart 1: Playtime Distribution */}
+              <PlaytimeHistogram data={stats.games} />
+
+              {/* Chart 2: Top 10 Most Played */}
+              <TopGamesBar data={stats.games} />
+
+              {/* Chart 3: Genre Distribution by Count */}
+              <GenreCountBar data={stats.games} />
+
+              {/* Chart 4: Genre Distribution by Playtime */}
+              <GenrePlaytimeBar data={stats.games} />
+
+              {/* Chart 5: Engagement Score vs Playtime */}
+              <div className="visualization-full-width">
+                <EngagementScatter data={stats.games} />
+              </div>
+
+              {/* Chart 6: Feature Importance (Optional - if data available) */}
+              {stats.feature_importance && (
+                <div className="visualization-full-width">
+                  <FeatureImportanceBar featureImportanceData={stats.feature_importance} />
+                </div>
+              )}
+
+              {/* Chart 7: Release Year Timeline (Optional - if data available) */}
+              <div className="visualization-full-width">
+                <ReleaseYearTimeline data={stats.games} />
+              </div>
+
+              {/* Chart 8: Tag Cloud */}
+              <div className="visualization-full-width">
+                <TagCloud data={stats.games} />
+              </div>
+            </div>
           </section>
         </>
       )}

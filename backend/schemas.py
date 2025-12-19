@@ -197,6 +197,18 @@ class ProfileResponse(BaseModel):
     settings: Dict[str, Any] = {}
 
 
+class GameForVisualization(BaseModel):
+    """Game data optimized for frontend visualizations."""
+    appid: int
+    name: str = "Unknown Game"
+    playtime_hours: float
+    playtime_category: Optional[str] = None
+    engagement_score: Optional[float] = None
+    genres: list[str] = []
+    tags: list[str] = []
+    release_year: Optional[int] = None
+
+
 class ProfileStatsResponse(BaseModel):
     """Schema for user profile statistics."""
     steam_id: int
@@ -206,6 +218,8 @@ class ProfileStatsResponse(BaseModel):
     top_10_games: list[Dict[str, Any]]
     top_genre: str  # Most played genre by hours ("N/A" if not available)
     gaming_style: str  # User's gaming style based on play patterns
+    games: list[GameForVisualization] = []  # Full game data for visualizations
+    feature_importance: Optional[list[Dict[str, Any]]] = None  # ML feature importance data
 
 
 class SyncRequest(BaseModel):
