@@ -208,19 +208,22 @@ def calculate_content_score(
     
     # 1. Tag similarity (55 points)
     tag_score = 0.0
-    if game_tags:
+    if game_tags and user_tag_profile:
+        # Calculate cosine-style similarity with vote weighting
+        matching_score = 0.0
+        total_user_weight = sum(user_tag_profile.values())
+        
         for tag, votes in game_tags.items():
             if tag in NSFW_TAGS or tag in META_TAGS:
                 continue
             if tag in user_tag_profile:
-                tag_score += user_tag_profile[tag] * (votes / 1000)  # Normalize votes
+                # Normalized contribution: user preference * game popularity
+                user_weight = user_tag_profile[tag] / (total_user_weight + 0.01)
+                vote_weight = min(1.0, votes / 500)  # Cap at 500 votes for normalization
+                matching_score += user_weight * vote_weight
         
-        # Normalize to 0-55 range
-        max_possible_tag_score = sum(user_tag_profile.values()) * 10
-        if max_possible_tag_score > 0:
-            tag_score = min(55, (tag_score / max_possible_tag_score) * 55)
-        else:
-            tag_score = 0
+        # Scale to 0-55 range (matching_score is 0-1)
+        tag_score = matching_score * 55
     
     score += tag_score
     
@@ -581,12 +584,52 @@ class HybridRecommender:
         )
         
         # Stage 6: Combine & Rank
-        logger.info("\nStage 6: Combining scores...")
+        logger.info("\nStage 6: Combining scores with adaptive weighting...")
+        
+        # Detect if user has meaningful preferences
+        # Preferences are meaningful if:
+        # 1. User explicitly provided boost/dislike tags/genres, OR
+        # 2. User has auto-learned dislikes from their library
+        has_explicit_preferences = bool(
+            (boost_tags and len(boost_tags) > 0) or
+            (boost_genres and len(boost_genres) > 0) or
+            (dislike_tags and len(dislike_tags) > 0) or
+            (dislike_genres and len(dislike_genres) > 0)
+        )
+        has_learned_preferences = bool(
+            (disliked_tag_profile and len(disliked_tag_profile) > 0) or
+            (disliked_genre_profile and len(disliked_genre_profile) > 0)
+        )
+        has_preferences = has_explicit_preferences or has_learned_preferences
+        
+        # Adaptive weighting: redistribute preference weight if not using preferences
+        if has_preferences:
+            # Standard weights when preferences are meaningful
+            weight_ml = WEIGHT_ML
+            weight_content = WEIGHT_CONTENT
+            weight_preference = WEIGHT_PREFERENCE
+            weight_review = WEIGHT_REVIEW
+            logger.info(f"Using standard weights (preferences detected: explicit={has_explicit_preferences}, learned={has_learned_preferences})")
+        else:
+            # Redistribute preference weight proportionally to other components
+            # Original: ML=35%, Content=35%, Preference=20%, Review=10%
+            # Without preference: Redistribute 20% proportionally
+            # ML: 35% → 43.75% (+25% of 35%)
+            # Content: 35% → 43.75% (+25% of 35%)
+            # Review: 10% → 12.5% (+25% of 10%)
+            redistribution_factor = 1.0 / (1.0 - WEIGHT_PREFERENCE)
+            weight_ml = WEIGHT_ML * redistribution_factor
+            weight_content = WEIGHT_CONTENT * redistribution_factor
+            weight_preference = 0.0
+            weight_review = WEIGHT_REVIEW * redistribution_factor
+            logger.info(f"Using adaptive weights (no preferences detected): ML={weight_ml:.1%}, Content={weight_content:.1%}, Review={weight_review:.1%}")
+        
+        # Weighted average - each component is 0-100, result is also 0-100
         catalog_unowned['hybrid_score'] = (
-            WEIGHT_ML * catalog_unowned['ml_score'] +
-            WEIGHT_CONTENT * catalog_unowned['content_score'] +
-            WEIGHT_PREFERENCE * catalog_unowned['preference_score'] +
-            WEIGHT_REVIEW * catalog_unowned['review_score']
+            weight_ml * catalog_unowned['ml_score'] +
+            weight_content * catalog_unowned['content_score'] +
+            weight_preference * catalog_unowned['preference_score'] +
+            weight_review * catalog_unowned['review_score']
         )
         
         # Stage 7: Hard Exclusions
@@ -826,6 +869,7 @@ class HybridRecommender:
         review_score = calculate_review_score(game)
         ml_score = 50.0  # Placeholder
         
+        # Calculate hybrid score (weighted average)
         hybrid_score = (
             WEIGHT_ML * ml_score +
             WEIGHT_CONTENT * content_score +

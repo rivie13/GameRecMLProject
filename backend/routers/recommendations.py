@@ -151,9 +151,12 @@ async def get_recommendations(
     # Convert to response format
     recommendations = []
     for _, game in recommendations_df.iterrows():
+        appid = int(game['appid'])
         recommendations.append({
-            "appid": int(game['appid']),
+            "appid": appid,
             "name": game['name'],
+            "developer": game.get('developer', 'Unknown Developer'),
+            "header_image": f"https://cdn.akamai.steamstatic.com/steam/apps/{appid}/header.jpg",
             "hybrid_score": round(float(game['hybrid_score']), 2),
             "ml_score": round(float(game.get('ml_score', 0)), 2),
             "content_score": round(float(game.get('content_score', 0)), 2),
@@ -164,9 +167,11 @@ async def get_recommendations(
             "review_percentage": round(
                 (game.get('positive', 0) / (game.get('positive', 0) + game.get('negative', 0) + 0.01)) * 100, 1
             ),
+            "median_playtime": float(game.get('median_forever', 0)),
+            "price": float(game.get('price', 0)) / 100.0,  # Convert cents to dollars
             "tags": game.get('tags', '{}'),
             "genres": game.get('genre', ''),
-            "steam_url": f"https://store.steampowered.com/app/{int(game['appid'])}/"
+            "steam_url": f"https://store.steampowered.com/app/{appid}/"
         })
     
     return recommendations

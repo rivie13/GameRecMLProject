@@ -2,6 +2,8 @@ import { useParams } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { api } from '../api/client'
 import toast from 'react-hot-toast'
+import GameCard from '../components/GameCard'
+import FilterControls from '../components/FilterControls'
 
 function Recommendations() {
   const { steamId } = useParams()
@@ -12,31 +14,92 @@ function Recommendations() {
     limit: 20,
     min_reviews: 5000,
     min_review_score: 70,
+    price_max: null,
+    release_year_min: null,
+    release_year_max: null,
     sfw_only: true,
     exclude_early_access: true,
+    boost_tags: '',
+    boost_genres: '',
+    dislike_tags: '',
+    dislike_genres: '',
+    hard_exclude_tags: '',
+    hard_exclude_genres: '',
   })
+  const [tempFilters, setTempFilters] = useState(filters)
+  const [showFilters, setShowFilters] = useState(false)
 
+  // Fetch recommendations when component mounts or steamId changes
   useEffect(() => {
     fetchRecommendations()
-  }, [steamId, filters])
+  }, [steamId])
 
   const fetchRecommendations = async () => {
     setIsLoading(true)
     try {
-      const response = await api.recommendations.get(steamId, filters)
-      setRecommendations(response.data.recommendations || [])
+      // Filter out null, undefined, and empty string values from params
+      const params = Object.entries(filters).reduce((acc, [key, value]) => {
+        if (value !== null && value !== undefined && value !== '') {
+          acc[key] = value
+        }
+        return acc
+      }, {})
+
+      const response = await api.recommendations.get(steamId, params)
+      // Backend returns array directly, not wrapped in {recommendations: []}
+      const recs = Array.isArray(response.data) ? response.data : (response.data.recommendations || [])
+      
+      // Map backend field names to frontend expected names
+      const mappedRecs = recs.map(game => ({
+        ...game,
+        score: game.hybrid_score || game.score || 0,
+        review_score: game.review_percentage || game.review_score || 0,
+        total_reviews: (game.positive_reviews || 0) + (game.negative_reviews || 0),
+        genres: typeof game.genres === 'string' ? game.genres.split(',').map(g => g.trim()).filter(Boolean) : (game.genres || []),
+        top_tags: typeof game.tags === 'string' ? Object.keys(JSON.parse(game.tags || '{}')).slice(0, 5) : (game.top_tags || []),
+        ml_score: game.ml_score,
+        content_score: game.content_score,
+        preference_score: game.preference_score,
+        review_component_score: game.review_score,
+      }))
+      
+      console.log('[RECS] Raw response:', response.data)
+      console.log('[RECS] Mapped recommendations:', mappedRecs)
+      setRecommendations(mappedRecs)
+      toast.success(`Loaded ${mappedRecs.length} recommendations`)
     } catch (error) {
       console.error('Failed to fetch recommendations:', error)
       toast.error('Failed to load recommendations')
+      setRecommendations([])
     } finally {
       setIsLoading(false)
     }
   }
 
+  const handleApplyFilters = () => {
+    setFilters(tempFilters)
+    setShowFilters(false)
+    // Manually trigger fetch after state update
+    setTimeout(() => fetchRecommendations(), 0)
+  }
+
+  const getModeDescription = (mode) => {
+    const descriptions = {
+      hybrid: 'AI + Content + Preferences + Reviews',
+      ml: 'Machine Learning predictions only',
+      content: 'Based on similar games you love',
+      preference: 'Tuned to your explicit preferences'
+    }
+    return descriptions[mode] || mode
+  }
+
   if (isLoading) {
     return (
       <div className="page-container">
-        <div className="loading">Loading recommendations...</div>
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Loading personalized recommendations...</p>
+        </div>
       </div>
     )
   }
@@ -44,60 +107,65 @@ function Recommendations() {
   return (
     <div className="page-container recommendations-page">
       <div className="recommendations-header">
-        <h1>Your Recommendations</h1>
+        <h1>🎮 Your Recommendations</h1>
         <p className="subtitle">
-          {recommendations.length} games recommended based on {filters.mode} mode
+          {recommendations.length} games recommended using <strong>{filters.mode}</strong> mode
+        </p>
+        <p className="mode-description">
+          {getModeDescription(filters.mode)}
         </p>
       </div>
 
-      <section className="filters-section">
-        <h3>Filters</h3>
-        <p className="section-note">Filter controls coming in Week 3...</p>
-        {/* Filter components will be added in Week 3 */}
-      </section>
+      {/* Filter Toggle Button */}
+      <div className="filter-toggle-container">
+        <button 
+          className="btn btn-secondary filter-toggle-btn"
+          onClick={() => setShowFilters(!showFilters)}
+        >
+          {showFilters ? '▼' : '▶'} {showFilters ? 'Hide' : 'Show'} Filters
+        </button>
+      </div>
 
+      {/* Filter Controls (Collapsible) */}
+      {showFilters && (
+        <section className="filters-section">
+          <FilterControls 
+            filters={tempFilters}
+            onFilterChange={setTempFilters}
+            onApply={handleApplyFilters}
+          />
+        </section>
+      )}
+
+      {/* Recommendations Grid */}
       <section className="recommendations-grid">
         {recommendations.length === 0 ? (
           <div className="empty-state">
-            <p>No recommendations found. Try adjusting your filters.</p>
+            <h2>No recommendations found</h2>
+            <p>Try adjusting your filters to see more games.</p>
+            <button 
+              className="btn btn-primary"
+              onClick={() => setShowFilters(true)}
+            >
+              Adjust Filters
+            </button>
           </div>
         ) : (
-          <div className="game-cards-grid">
-            {recommendations.map((game) => (
-              <div key={game.appid} className="game-card">
-                <div className="game-image">
-                  <img 
-                    src={game.header_image || '/placeholder-game.png'} 
-                    alt={game.name}
-                    onError={(e) => e.target.src = '/placeholder-game.png'}
-                  />
-                </div>
-                <div className="game-info">
-                  <h3 className="game-title">{game.name}</h3>
-                  <div className="game-score">
-                    <span className="score-value">{Math.round(game.score)}/100</span>
-                    <span className="score-label">Match</span>
-                  </div>
-                  <p className="game-developer">{game.developer || 'Unknown'}</p>
-                  <div className="game-tags">
-                    {game.genres?.slice(0, 3).map((genre, idx) => (
-                      <span key={idx} className="tag">{genre}</span>
-                    ))}
-                  </div>
-                  <div className="game-actions">
-                    <a 
-                      href={`https://store.steampowered.com/app/${game.appid}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn btn-small btn-primary"
-                    >
-                      View on Steam
-                    </a>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+          <>
+            <div className="recommendations-count">
+              <p>Showing {recommendations.length} of {filters.limit} results</p>
+            </div>
+            <div className="game-cards-grid">
+              {recommendations.map((game) => (
+                <GameCard 
+                  key={game.appid} 
+                  game={game}
+                  steamId={steamId}
+                  mode={filters.mode}
+                />
+              ))}
+            </div>
+          </>
         )}
       </section>
     </div>
