@@ -18,10 +18,10 @@ CATALOG_FILE = DATA_DIR / "steam_catalog_detailed.csv"
 CHECKPOINT_FILE = DATA_DIR / "cache" / "release_dates_checkpoint.json"
 
 # Threading configuration
-MAX_WORKERS = 3  # Number of concurrent threads (reduced to avoid rate limits)
+MAX_WORKERS = 40  # Number of concurrent threads (reduced to avoid rate limits)
 RATE_LIMIT_DELAY = 1.0  # Delay between requests (seconds)
-MAX_RETRIES = 8  # Maximum number of retries for 429 errors
-RETRY_BASE_DELAY = 3  # Base delay for exponential backoff (seconds) - gives up to 384s max wait
+MAX_RETRIES = 10  # Maximum number of retries for 429 errors
+RETRY_BASE_DELAY = 5  # Base delay for exponential backoff (seconds) - gives up to 384s max wait
 
 # Create cache directory if it doesn't exist
 CHECKPOINT_FILE.parent.mkdir(exist_ok=True)
