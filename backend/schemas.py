@@ -204,6 +204,8 @@ class ProfileStatsResponse(BaseModel):
     total_playtime_hours: float
     playtime_distribution: Dict[str, int]  # {'loved_50plus': 10, 'played_10_50': 50, 'tried_under10': 100, 'unplayed': 50}
     top_10_games: list[Dict[str, Any]]
+    top_genre: str  # Most played genre by hours ("N/A" if not available)
+    gaming_style: str  # User's gaming style based on play patterns
 
 
 class SyncRequest(BaseModel):

@@ -110,6 +110,23 @@ async def get_profile_stats(
     # Get top 10 most played
     top_games = sorted(games, key=lambda x: x.playtime_hours, reverse=True)[:10]
     
+    # Calculate total playtime
+    total_hours = sum(g.playtime_hours for g in games)
+    
+    # Determine gaming style based on play patterns
+    if total_hours == 0:
+        gaming_style = "Collector"
+    elif loved > len(games) * 0.3:  # 30%+ loved games
+        gaming_style = "Completionist"
+    elif unplayed > len(games) * 0.5:  # 50%+ unplayed
+        gaming_style = "Hoarder"
+    elif tried > len(games) * 0.5:  # 50%+ tried but not finished
+        gaming_style = "Explorer"
+    elif played > len(games) * 0.4:  # 40%+ moderately played
+        gaming_style = "Casual Gamer"
+    else:
+        gaming_style = "Enthusiast"
+    
     return ProfileStatsResponse(
         steam_id=steam_id,
         total_games=len(games),
@@ -127,7 +144,9 @@ async def get_profile_stats(
             }
             for g in top_games
         ],
-        total_playtime_hours=round(sum(g.playtime_hours for g in games), 1)
+        total_playtime_hours=round(total_hours, 1),
+        top_genre="N/A",  # TODO: Calculate from catalog metadata in Week 3
+        gaming_style=gaming_style
     )
 
 

@@ -36,7 +36,9 @@ function Profile() {
 
   const fetchProfile = async (id) => {
     try {
+      console.log('[PROFILE] Fetching profile for Steam ID:', id)
       const response = await api.profile.get(id)
+      console.log('[PROFILE] Profile response:', response.data)
       setProfile(response.data)
     } catch (error) {
       console.error('Failed to fetch profile:', error)
@@ -46,7 +48,9 @@ function Profile() {
 
   const fetchStats = async (id) => {
     try {
+      console.log('[PROFILE] Fetching stats for Steam ID:', id)
       const response = await api.profile.getStats(id)
+      console.log('[PROFILE] Stats response:', response.data)
       setStats(response.data)
     } catch (error) {
       console.error('Failed to fetch stats:', error)
@@ -101,7 +105,7 @@ function Profile() {
               <div className="stat-label">Games Owned</div>
             </div>
             <div className="stat-card">
-              <div className="stat-value">{stats.total_hours || 0}</div>
+              <div className="stat-value">{stats.total_playtime_hours || 0}</div>
               <div className="stat-label">Hours Played</div>
             </div>
             <div className="stat-card">
