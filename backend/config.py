@@ -14,7 +14,8 @@ class Settings(BaseSettings):
     steam_id: Optional[str] = None
     
     # Database Configuration
-    database_url: str = "postgresql://postgres:password@localhost:5432/steam_rec_db"
+    # Using postgresql+psycopg:// for psycopg3 (Python 3.13 compatible)
+    database_url: str = "postgresql+psycopg://postgres:password@localhost:5432/steam_rec_db"
     
     # Security & Authentication
     jwt_secret_key: str = "dev-secret-key-change-in-production"

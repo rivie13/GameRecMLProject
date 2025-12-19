@@ -9,7 +9,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from datetime import datetime
 
-from .database import Base
+from database import Base
 
 
 class User(Base):
@@ -134,7 +134,7 @@ class CatalogCache(Base):
     appid = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
     release_year = Column(Integer, nullable=True)  # NULL if not available (~89% of games)
-    metadata = Column(JSON, nullable=True)  # Store all game metadata as JSON
+    game_metadata = Column(JSON, nullable=True)  # Store all game metadata as JSON (renamed from 'metadata' to avoid SQLAlchemy conflict)
     last_updated = Column(DateTime, default=func.now(), nullable=False)
     
     def __repr__(self):

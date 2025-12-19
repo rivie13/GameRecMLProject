@@ -7,9 +7,9 @@ from sqlalchemy.orm import Session
 import logging
 from datetime import datetime
 
-from .config import settings
-from .database import get_db, check_db_connection
-from .schemas import HealthCheckResponse
+from config import settings
+from database import get_db, check_db_connection
+from schemas import HealthCheckResponse
 
 # Configure logging
 logging.basicConfig(

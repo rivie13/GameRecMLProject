@@ -7,12 +7,12 @@ from sqlalchemy.orm import sessionmaker, Session
 from typing import Generator
 import logging
 
-from .config import settings
+from config import settings
 
 logger = logging.getLogger(__name__)
 
 # Create SQLAlchemy engine
-# For PostgreSQL, we use psycopg2 driver (psycopg2-binary package)
+# For PostgreSQL, we use psycopg (version 3) driver
 engine = create_engine(
     settings.database_url,
     echo=settings.debug,  # Log SQL queries in debug mode
