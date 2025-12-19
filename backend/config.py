@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
     
     # Steam API Configuration
-    steam_api_key: str
+    steam_api_key: str = ""  # Required, but loaded from .env
     steam_id: Optional[str] = None
     
     # Database Configuration
