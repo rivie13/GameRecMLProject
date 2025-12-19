@@ -104,14 +104,19 @@ async def health_check(db: Session = Depends(get_db)):
 
 
 # ============================================================
-# Include Routers (will add later)
+# Include Routers
 # ============================================================
 
-# from .routers import auth, profile, recommendations, feedback
-# app.include_router(auth.router, prefix=f"{settings.api_v1_prefix}/auth", tags=["auth"])
-# app.include_router(profile.router, prefix=f"{settings.api_v1_prefix}/profile", tags=["profile"])
-# app.include_router(recommendations.router, prefix=f"{settings.api_v1_prefix}/recommendations", tags=["recommendations"])
-# app.include_router(feedback.router, prefix=f"{settings.api_v1_prefix}/feedback", tags=["feedback"])
+from routers import auth
+
+# Register authentication router
+app.include_router(auth.router)
+
+# Will add more routers in Day 5-7:
+# from routers import profile, recommendations, feedback
+# app.include_router(profile.router)
+# app.include_router(recommendations.router)
+# app.include_router(feedback.router)
 
 
 # ============================================================

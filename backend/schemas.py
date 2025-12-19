@@ -7,6 +7,28 @@ from datetime import datetime
 
 
 # ============================================================
+# Authentication Schemas
+# ============================================================
+
+class Token(BaseModel):
+    """JWT token response schema."""
+    access_token: str
+    token_type: str = "bearer"
+
+
+class TokenData(BaseModel):
+    """Token payload data."""
+    steam_id: Optional[int] = None
+
+
+class LoginResponse(BaseModel):
+    """Response after successful Steam login."""
+    user: "UserResponse"
+    access_token: str
+    token_type: str = "bearer"
+
+
+# ============================================================
 # User Schemas
 # ============================================================
 

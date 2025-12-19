@@ -542,18 +542,19 @@ GameRecMLProject/
 ### Week 1: Backend Foundation
 **Goal**: Working FastAPI backend with auth and basic endpoints
 
-- [ ] **Day 1-2: Project Setup**
+- [x] **Day 1-2: Project Setup**
   - Initialize FastAPI project structure
   - Set up PostgreSQL locally (Docker or native)
   - Create database schema (SQLAlchemy models)
   - Set up Alembic for migrations
   - Configure environment variables (.env)
 
-- [ ] **Day 3-4: Steam OAuth**
+- [x] **Day 3-4: Steam OAuth** ✅ **COMPLETE**
   - Implement Steam OpenID authentication
-  - Create auth routes (login, callback, logout)
+  - Create auth routes (login, callback, logout, /me)
   - JWT token generation and validation
   - User session management
+  - Security validation & testing
 
 - [ ] **Day 5-7: Core API Endpoints**
   - Profile routes (get, sync)
