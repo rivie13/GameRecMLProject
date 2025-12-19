@@ -132,6 +132,8 @@ async def get_recommendations(
             exclude_early_access=exclude_early_access,
             min_reviews=min_reviews,
             min_review_score=min_review_score,
+            release_year_min=release_year_min,
+            release_year_max=release_year_max,
             boost_tags=boost_tags_dict,
             boost_genres=boost_genres_dict,
             dislike_tags=dislike_tags_dict,

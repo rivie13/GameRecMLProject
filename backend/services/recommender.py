@@ -416,6 +416,13 @@ class HybridRecommender:
             
             initial_count = len(self.catalog_df)
             
+            # Parse release_date to extract year
+            self.catalog_df['release_year'] = pd.to_datetime(
+                self.catalog_df['release_date'], 
+                format='%b %d, %Y', 
+                errors='coerce'
+            ).dt.year
+            
             # DEDUPLICATE: Remove duplicate game names, keep the one with most reviews
             logger.info(f"Checking for duplicate game names...")
             self.catalog_df['total_reviews'] = self.catalog_df['positive'] + self.catalog_df['negative']
@@ -453,6 +460,8 @@ class HybridRecommender:
         exclude_early_access: bool = True,
         min_reviews: int = 5000,
         min_review_score: int = 70,
+        release_year_min: Optional[int] = None,
+        release_year_max: Optional[int] = None,
         boost_tags: Optional[Dict[str, int]] = None,
         boost_genres: Optional[Dict[str, int]] = None,
         dislike_tags: Optional[Dict[str, int]] = None,
@@ -470,6 +479,8 @@ class HybridRecommender:
             exclude_early_access: Filter out Early Access games
             min_reviews: Minimum review count threshold
             min_review_score: Minimum positive review percentage
+            release_year_min: Minimum release year (inclusive)
+            release_year_max: Maximum release year (inclusive)
             boost_tags: Dict of tag: boost_points to prioritize
             boost_genres: Dict of genre: boost_points to prioritize
             dislike_tags: Dict of tag: penalty_points to avoid
@@ -488,7 +499,8 @@ class HybridRecommender:
         # Stage 1: Universal Filters
         logger.info("\nStage 1: Applying universal filters...")
         catalog_filtered = self._apply_universal_filters(
-            sfw_only, exclude_early_access, min_reviews, min_review_score
+            sfw_only, exclude_early_access, min_reviews, min_review_score,
+            release_year_min, release_year_max
         )
         
         # Exclude already owned games (by appid AND by name for duplicate editions)
@@ -679,7 +691,9 @@ class HybridRecommender:
         sfw_only: bool,
         exclude_early_access: bool,
         min_reviews: int,
-        min_review_score: int
+        min_review_score: int,
+        release_year_min: Optional[int] = None,
+        release_year_max: Optional[int] = None
     ) -> pd.DataFrame:
         """Apply universal quality and appropriateness filters."""
         assert self.catalog_df is not None, "Catalog not loaded"
@@ -726,6 +740,23 @@ class HybridRecommender:
             )
         ]
         logger.info(f"  Meta genre filter: {before} → {len(filtered)} games")
+        
+        # Release year filters
+        if release_year_min is not None:
+            before = len(filtered)
+            filtered = filtered[
+                (filtered['release_year'].notna()) & 
+                (filtered['release_year'] >= release_year_min)
+            ]
+            logger.info(f"  Min release year filter ({release_year_min}): {before} → {len(filtered)} games")
+        
+        if release_year_max is not None:
+            before = len(filtered)
+            filtered = filtered[
+                (filtered['release_year'].notna()) & 
+                (filtered['release_year'] <= release_year_max)
+            ]
+            logger.info(f"  Max release year filter ({release_year_max}): {before} → {len(filtered)} games")
         
         return filtered
     

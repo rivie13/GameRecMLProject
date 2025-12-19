@@ -556,7 +556,7 @@ GameRecMLProject/
   - User session management
   - Security validation & testing
 
-- [ ] **Day 5-7: Core API Endpoints**
+- [x] **Day 5-7: Core API Endpoints**
   - Profile routes (get, sync)
   - Extract recommender logic from notebooks → `services/recommender.py`
   - Recommendation routes (generate, explain)
