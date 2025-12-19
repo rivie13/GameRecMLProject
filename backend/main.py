@@ -3,6 +3,7 @@ FastAPI main application entry point.
 """
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 import logging
 from datetime import datetime
@@ -88,7 +89,7 @@ async def health_check(db: Session = Depends(get_db)):
     """
     try:
         # Test database query
-        db.execute("SELECT 1")
+        db.execute(text("SELECT 1"))
         db_status = "connected"
     except Exception as e:
         logger.error(f"Health check database error: {e}")
