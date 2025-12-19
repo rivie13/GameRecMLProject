@@ -36,10 +36,10 @@ function Recommendations() {
   const [tempFilters, setTempFilters] = useState(filters)
   const [showFilters, setShowFilters] = useState(false)
 
-  // Fetch recommendations when component mounts or steamId changes
+  // Fetch recommendations when component mounts, steamId changes, or filters change
   useEffect(() => {
     fetchRecommendations()
-  }, [steamId])
+  }, [steamId, filters])
 
   const fetchRecommendations = async () => {
     setIsLoading(true)
@@ -125,8 +125,6 @@ function Recommendations() {
   const handleApplyFilters = () => {
     setFilters(tempFilters)
     setShowFilters(false)
-    // Manually trigger fetch after state update
-    setTimeout(() => fetchRecommendations(), 0)
   }
 
   const getModeDescription = (mode) => {

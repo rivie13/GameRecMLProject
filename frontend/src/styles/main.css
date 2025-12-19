@@ -1650,6 +1650,15 @@ h1, h2, h3, h4, h5, h6 {
   background: #4a8f23;
 }
 
+.btn-danger {
+  background: #d32f2f;
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #b71c1c;
+}
+
 /* Empty State */
 .empty-state {
   text-align: center;

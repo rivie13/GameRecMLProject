@@ -491,6 +491,7 @@ class HybridRecommender:
         exclude_early_access: bool = True,
         min_reviews: int = 5000,
         min_review_score: int = 70,
+        price_max: Optional[float] = None,
         release_year_min: Optional[int] = None,
         release_year_max: Optional[int] = None,
         boost_tags: Optional[Dict[str, int]] = None,
@@ -517,6 +518,7 @@ class HybridRecommender:
             exclude_early_access: Filter out Early Access games
             min_reviews: Minimum review count threshold
             min_review_score: Minimum positive review percentage
+            price_max: Maximum price in dollars (None for no limit)
             release_year_min: Minimum release year (inclusive)
             release_year_max: Maximum release year (inclusive)
             boost_tags: Dict of tag: boost_points to prioritize
@@ -545,7 +547,7 @@ class HybridRecommender:
         logger.info("\nStage 1: Applying universal filters...")
         catalog_filtered = self._apply_universal_filters(
             sfw_only, exclude_early_access, min_reviews, min_review_score,
-            release_year_min, release_year_max
+            price_max, release_year_min, release_year_max
         )
         
         # Exclude already owned games (by appid AND by name for duplicate editions)
@@ -813,6 +815,7 @@ class HybridRecommender:
         exclude_early_access: bool,
         min_reviews: int,
         min_review_score: int,
+        price_max: Optional[float] = None,
         release_year_min: Optional[int] = None,
         release_year_max: Optional[int] = None
     ) -> pd.DataFrame:
@@ -852,6 +855,16 @@ class HybridRecommender:
             (filtered['positive'] / (filtered['positive'] + filtered['negative']) * 100) >= min_review_score
         ]
         logger.info(f"  Min review score filter ({min_review_score}%): {before} → {len(filtered)} games")
+        
+        # Price filter
+        if price_max is not None:
+            before = len(filtered)
+            # Price is stored in cents, convert to dollars for comparison
+            filtered = filtered[
+                (filtered['price'].notna()) & 
+                (filtered['price'] / 100.0 <= price_max)
+            ]
+            logger.info(f"  Max price filter (${price_max:.2f}): {before} → {len(filtered)} games")
         
         # Meta genre filter
         before = len(filtered)

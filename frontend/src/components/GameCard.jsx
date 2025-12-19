@@ -132,18 +132,18 @@ function GameCard({ game, steamId, mode }) {
         {/* Action Buttons */}
         <div className="game-actions">
           <button 
+            className="btn btn-small btn-danger"
+            onClick={() => handleFeedback('dismissed')}
+            disabled={isSubmittingFeedback}
+          >
+            👎 Not Interested
+          </button>
+          <button 
             className="btn btn-small btn-success"
             onClick={() => handleFeedback('interested')}
             disabled={isSubmittingFeedback}
           >
             👍 Interested
-          </button>
-          <button 
-            className="btn btn-small btn-secondary"
-            onClick={() => handleFeedback('dismissed')}
-            disabled={isSubmittingFeedback}
-          >
-            👎 Not Interested
           </button>
           <a 
             href={`https://store.steampowered.com/app/${game.appid}`}
