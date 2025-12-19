@@ -2,6 +2,7 @@
 Recommendations router - Generate and explain game recommendations.
 """
 from typing import Optional, List, Dict, Any, TYPE_CHECKING
+import json
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -39,6 +40,15 @@ async def get_recommendations(
     dislike_genres: Optional[str] = Query(default=None, description="Comma-separated genres to penalize, e.g. 'Sports:-10'"),
     hard_exclude_tags: Optional[str] = Query(default=None, description="Comma-separated tags to exclude completely"),
     hard_exclude_genres: Optional[str] = Query(default=None, description="Comma-separated genres to exclude completely"),
+    # Weight tuning (hybrid mode only)
+    weight_ml: Optional[float] = Query(default=None, ge=0, le=1, description="ML weight (0-1, default 0.35)"),
+    weight_content: Optional[float] = Query(default=None, ge=0, le=1, description="Content weight (0-1, default 0.35)"),
+    weight_preference: Optional[float] = Query(default=None, ge=0, le=1, description="Preference weight (0-1, default 0.20)"),
+    weight_review: Optional[float] = Query(default=None, ge=0, le=1, description="Review weight (0-1, default 0.10)"),
+    # Diversity parameters (JSON format)
+    genre_limits: Optional[str] = Query(default=None, description='Genre limits as JSON, e.g. {"Action": 5, "RPG": 3}'),
+    tag_limits: Optional[str] = Query(default=None, description='Tag limits as JSON, e.g. {"Souls-like": 3, "Open-World": 4}'),
+    series_limits: Optional[str] = Query(default=None, description='Series limits as JSON, e.g. {"Dark Souls": 2, "Fallout": 2}'),
     # Database and auth
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -124,6 +134,37 @@ async def get_recommendations(
     hard_exclude_tags_list = hard_exclude_tags.split(',') if hard_exclude_tags else []
     hard_exclude_genres_list = hard_exclude_genres.split(',') if hard_exclude_genres else []
     
+    # Parse diversity parameters from JSON
+    genre_limits_dict = None
+    if genre_limits:
+        try:
+            genre_limits_dict = json.loads(genre_limits)
+        except json.JSONDecodeError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid genre_limits JSON format"
+            )
+    
+    tag_limits_dict = None
+    if tag_limits:
+        try:
+            tag_limits_dict = json.loads(tag_limits)
+        except json.JSONDecodeError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid tag_limits JSON format"
+            )
+    
+    series_limits_dict = None
+    if series_limits:
+        try:
+            series_limits_dict = json.loads(series_limits)
+        except json.JSONDecodeError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid series_limits JSON format"
+            )
+    
     # Generate recommendations
     try:
         recommendations_df = recommender.generate_recommendations(
@@ -140,6 +181,13 @@ async def get_recommendations(
             dislike_genres=dislike_genres_dict,
             hard_exclude_tags=hard_exclude_tags_list,
             hard_exclude_genres=hard_exclude_genres_list,
+            genre_limits=genre_limits_dict,
+            tag_limits=tag_limits_dict,
+            series_limits=series_limits_dict,
+            weight_ml=weight_ml,
+            weight_content=weight_content,
+            weight_preference=weight_preference,
+            weight_review=weight_review,
             top_n=limit
         )
     except Exception as e:

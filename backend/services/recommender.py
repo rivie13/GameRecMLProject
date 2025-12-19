@@ -209,21 +209,31 @@ def calculate_content_score(
     # 1. Tag similarity (55 points)
     tag_score = 0.0
     if game_tags and user_tag_profile:
-        # Calculate cosine-style similarity with vote weighting
+        # Calculate weighted tag matching
         matching_score = 0.0
         total_user_weight = sum(user_tag_profile.values())
         
+        # For each tag in the game, check if user likes it
         for tag, votes in game_tags.items():
             if tag in NSFW_TAGS or tag in META_TAGS:
                 continue
             if tag in user_tag_profile:
-                # Normalized contribution: user preference * game popularity
-                user_weight = user_tag_profile[tag] / (total_user_weight + 0.01)
-                vote_weight = min(1.0, votes / 500)  # Cap at 500 votes for normalization
-                matching_score += user_weight * vote_weight
+                # User's preference for this tag (0-1 normalized)
+                user_preference = user_tag_profile[tag] / max(total_user_weight, 1.0)
+                
+                # Tag's popularity in this game (0-1, capped at 1000 votes)
+                tag_popularity = min(1.0, votes / 1000)
+                
+                # Combined score: both must be meaningful
+                # Use sqrt to be less punishing when one is lower
+                tag_contribution = (user_preference * tag_popularity) ** 0.7
+                matching_score += tag_contribution
         
-        # Scale to 0-55 range (matching_score is 0-1)
-        tag_score = matching_score * 55
+        # Scale to 0-55 range
+        # Good matches should score 35-50, great matches 45-55
+        # Normalize by expected number of matching tags (typically 3-8)
+        normalized_score = matching_score / 0.5  # Expect ~0.5 total from 5-6 good matches
+        tag_score = min(55, normalized_score * 55)
     
     score += tag_score
     
@@ -265,6 +275,8 @@ def calculate_content_score(
 
 def calculate_preference_score(
     game_row: pd.Series,
+    user_tag_profile: Dict[str, float],
+    user_genre_profile: Dict[str, float],
     disliked_tag_profile: Dict[str, int],
     disliked_genre_profile: Dict[str, int],
     boost_tags: Optional[Dict[str, int]] = None,
@@ -276,9 +288,10 @@ def calculate_preference_score(
     Calculate preference adjustments (0-100 scale).
     
     Combines:
-    - Auto-learned dislikes from <5hr games
-    - User-specified boosts (want to see more)
-    - User-specified additional dislikes
+    - Auto-learned LIKES from loved games (>50hr) - BOOSTS
+    - Auto-learned DISLIKES from <5hr games - PENALTIES
+    - User-specified boosts (want to see more) - ADDITIONAL BOOSTS
+    - User-specified additional dislikes - ADDITIONAL PENALTIES
     
     Returns:
         Score from 0-100 where 50 is neutral
@@ -301,17 +314,31 @@ def calculate_preference_score(
     
     game_genres = game_row['genre_list']
     
-    # Apply auto-learned disliked tag penalties
+    # 1. Apply AUTO-LEARNED LIKES from loved games (BOOSTS)
+    # If game has tags/genres you love, boost the preference score
+    for tag in game_tags.keys():
+        if tag in user_tag_profile:
+            # Small boost proportional to how much you like this tag
+            # Normalize to ~5-15 point range
+            boost_amount = min(15, user_tag_profile[tag] * 30)
+            score += boost_amount
+    
+    for genre in game_genres:
+        if genre in user_genre_profile:
+            # Genre boosts are more impactful (10-20 points)
+            boost_amount = min(20, user_genre_profile[genre] * 40)
+            score += boost_amount
+    
+    # 2. Apply AUTO-LEARNED DISLIKES from <5hr games (PENALTIES)
     for tag in game_tags.keys():
         if tag in disliked_tag_profile:
             score -= 5  # -5 points per auto-learned disliked tag
     
-    # Apply auto-learned disliked genre penalties
     for genre in game_genres:
         if genre in disliked_genre_profile:
             score -= 10  # -10 points per auto-learned disliked genre
     
-    # Apply user-specified boosts
+    # 3. Apply USER-SPECIFIED BOOSTS (filter UI)
     for tag in game_tags.keys():
         if tag in boost_tags:
             score += boost_tags[tag]
@@ -320,7 +347,7 @@ def calculate_preference_score(
         if genre in boost_genres:
             score += boost_genres[genre]
     
-    # Apply user-specified additional penalties
+    # 4. Apply USER-SPECIFIED DISLIKES (filter UI)
     for tag in game_tags.keys():
         if tag in dislike_tags:
             score += dislike_tags[tag]  # Already negative in dict
@@ -329,6 +356,7 @@ def calculate_preference_score(
         if genre in dislike_genres:
             score += dislike_genres[genre]  # Already negative in dict
     
+    # Clamp to 0-100 range
     return max(0, min(100, score))
 
 
@@ -471,6 +499,13 @@ class HybridRecommender:
         dislike_genres: Optional[Dict[str, int]] = None,
         hard_exclude_tags: Optional[List[str]] = None,
         hard_exclude_genres: Optional[List[str]] = None,
+        genre_limits: Optional[Dict[str, int]] = None,
+        tag_limits: Optional[Dict[str, int]] = None,
+        series_limits: Optional[Dict[str, int]] = None,
+        weight_ml: Optional[float] = None,
+        weight_content: Optional[float] = None,
+        weight_preference: Optional[float] = None,
+        weight_review: Optional[float] = None,
         top_n: int = 20
     ) -> pd.DataFrame:
         """
@@ -490,6 +525,13 @@ class HybridRecommender:
             dislike_genres: Dict of genre: penalty_points to avoid
             hard_exclude_tags: List of tags to completely exclude
             hard_exclude_genres: List of genres to completely exclude
+            genre_limits: Dict of genre: max_count (e.g., {"Action": 5, "RPG": 3})
+            tag_limits: Dict of tag: max_count (e.g., {"Souls-like": 3})
+            series_limits: Dict of series: max_count (e.g., {"Dark Souls": 2, "Fallout": 2})
+            weight_ml: Custom ML weight (0-1, default 0.35)
+            weight_content: Custom content weight (0-1, default 0.35)
+            weight_preference: Custom preference weight (0-1, default 0.20)
+            weight_review: Custom review weight (0-1, default 0.10)
             top_n: Number of recommendations to return
             
         Returns:
@@ -571,7 +613,8 @@ class HybridRecommender:
         logger.info("\nStage 4: Calculating preference scores...")
         catalog_unowned['preference_score'] = catalog_unowned.apply(
             lambda row: calculate_preference_score(
-                row, disliked_tag_profile, disliked_genre_profile,
+                row, user_tag_profile, user_genre_profile,
+                disliked_tag_profile, disliked_genre_profile,
                 boost_tags, boost_genres, dislike_tags, dislike_genres
             ),
             axis=1
@@ -586,43 +629,71 @@ class HybridRecommender:
         # Stage 6: Combine & Rank
         logger.info("\nStage 6: Combining scores with adaptive weighting...")
         
-        # Detect if user has meaningful preferences
-        # Preferences are meaningful if:
-        # 1. User explicitly provided boost/dislike tags/genres, OR
-        # 2. User has auto-learned dislikes from their library
-        has_explicit_preferences = bool(
-            (boost_tags and len(boost_tags) > 0) or
-            (boost_genres and len(boost_genres) > 0) or
-            (dislike_tags and len(dislike_tags) > 0) or
-            (dislike_genres and len(dislike_genres) > 0)
-        )
-        has_learned_preferences = bool(
-            (disliked_tag_profile and len(disliked_tag_profile) > 0) or
-            (disliked_genre_profile and len(disliked_genre_profile) > 0)
-        )
-        has_preferences = has_explicit_preferences or has_learned_preferences
-        
-        # Adaptive weighting: redistribute preference weight if not using preferences
-        if has_preferences:
-            # Standard weights when preferences are meaningful
-            weight_ml = WEIGHT_ML
-            weight_content = WEIGHT_CONTENT
-            weight_preference = WEIGHT_PREFERENCE
-            weight_review = WEIGHT_REVIEW
-            logger.info(f"Using standard weights (preferences detected: explicit={has_explicit_preferences}, learned={has_learned_preferences})")
+        # Use custom weights if provided, otherwise use defaults with adaptive logic
+        if all(w is not None for w in [weight_ml, weight_content, weight_preference, weight_review]):
+            # Validate custom weights sum to ~1.0
+            # Type assertions since we checked all are not None above
+            assert weight_ml is not None
+            assert weight_content is not None
+            assert weight_preference is not None
+            assert weight_review is not None
+            wm = float(weight_ml)
+            wc = float(weight_content)
+            wp = float(weight_preference)
+            wr = float(weight_review)
+            total_weight = wm + wc + wp + wr
+            if not (0.95 <= total_weight <= 1.05):
+                logger.warning(f"Custom weights sum to {total_weight:.2f}, should be ~1.0. Auto-normalizing.")
+                weight_ml = wm / total_weight
+                weight_content = wc / total_weight
+                weight_preference = wp / total_weight
+                weight_review = wr / total_weight
+            else:
+                weight_ml = wm
+                weight_content = wc
+                weight_preference = wp
+                weight_review = wr
+            logger.info(f"Using custom weights: ML={weight_ml:.1%}, Content={weight_content:.1%}, Preference={weight_preference:.1%}, Review={weight_review:.1%}")
         else:
-            # Redistribute preference weight proportionally to other components
-            # Original: ML=35%, Content=35%, Preference=20%, Review=10%
-            # Without preference: Redistribute 20% proportionally
-            # ML: 35% → 43.75% (+25% of 35%)
-            # Content: 35% → 43.75% (+25% of 35%)
-            # Review: 10% → 12.5% (+25% of 10%)
-            redistribution_factor = 1.0 / (1.0 - WEIGHT_PREFERENCE)
-            weight_ml = WEIGHT_ML * redistribution_factor
-            weight_content = WEIGHT_CONTENT * redistribution_factor
-            weight_preference = 0.0
-            weight_review = WEIGHT_REVIEW * redistribution_factor
-            logger.info(f"Using adaptive weights (no preferences detected): ML={weight_ml:.1%}, Content={weight_content:.1%}, Review={weight_review:.1%}")
+            # Detect if user has meaningful POSITIVE preferences
+            # Preferences are meaningful (worth 20% weight) if:
+            # 1. User explicitly provided BOOST tags/genres, OR
+            # 2. User has loved games (auto-learned positive preferences)
+            # 
+            # NOTE: Dislikes alone (learned or explicit) don't count as "preferences"
+            # because they only penalize, they don't boost scores.
+            # Using standard weights with only dislikes drags down scores unfairly.
+            has_explicit_boosts = bool(
+                (boost_tags and len(boost_tags) > 0) or
+                (boost_genres and len(boost_genres) > 0)
+            )
+            has_loved_games = bool(
+                (user_tag_profile and len(user_tag_profile) > 0) or
+                (user_genre_profile and len(user_genre_profile) > 0)
+            )
+            has_meaningful_preferences = has_explicit_boosts or has_loved_games
+            
+            # Adaptive weighting: redistribute preference weight if no positive preferences
+            if has_meaningful_preferences:
+                # Standard weights when user has positive preferences
+                weight_ml = WEIGHT_ML
+                weight_content = WEIGHT_CONTENT
+                weight_preference = WEIGHT_PREFERENCE
+                weight_review = WEIGHT_REVIEW
+                logger.info(f"Using standard weights (positive preferences detected: explicit_boosts={has_explicit_boosts}, loved_games={has_loved_games})")
+            else:
+                # Redistribute preference weight proportionally to other components
+                # Original: ML=35%, Content=35%, Preference=20%, Review=10%
+                # Without preference: Redistribute 20% proportionally
+                # ML: 35% → 43.75% (+25% of 35%)
+                # Content: 35% → 43.75% (+25% of 35%)
+                # Review: 10% → 12.5% (+25% of 10%)
+                redistribution_factor = 1.0 / (1.0 - WEIGHT_PREFERENCE)
+                weight_ml = WEIGHT_ML * redistribution_factor
+                weight_content = WEIGHT_CONTENT * redistribution_factor
+                weight_preference = 0.0
+                weight_review = WEIGHT_REVIEW * redistribution_factor
+                logger.info(f"Using adaptive weights (no positive preferences): ML={weight_ml:.1%}, Content={weight_content:.1%}, Review={weight_review:.1%}, Preference=0%")
         
         # Weighted average - each component is 0-100, result is also 0-100
         catalog_unowned['hybrid_score'] = (
@@ -637,6 +708,13 @@ class HybridRecommender:
         catalog_final = self._apply_hard_exclusions(
             catalog_unowned, hard_exclude_tags or [], hard_exclude_genres or []
         )
+        
+        # Stage 8: Apply Diversity Filters (if specified)
+        if genre_limits or tag_limits or series_limits:
+            logger.info("\nStage 8: Applying diversity filters...")
+            catalog_final = self._apply_diversity_filters(
+                catalog_final, genre_limits, tag_limits, series_limits
+            )
         
         # Get top N (get more than needed to account for deduplication)
         top_recommendations = catalog_final.nlargest(top_n * 2, 'hybrid_score')
@@ -834,6 +912,128 @@ class HybridRecommender:
         
         return filtered
     
+    def _apply_diversity_filters(
+        self,
+        df: pd.DataFrame,
+        genre_limits: Optional[Dict[str, int]] = None,
+        tag_limits: Optional[Dict[str, int]] = None,
+        series_limits: Optional[Dict[str, int]] = None
+    ) -> pd.DataFrame:
+        """
+        Apply diversity filters with specific limits per genre/tag/series.
+        
+        Args:
+            df: DataFrame with candidate games (sorted by hybrid_score)
+            genre_limits: Dict of genre -> max count (e.g., {"Action": 5, "RPG": 3})
+            tag_limits: Dict of tag -> max count (e.g., {"Souls-like": 3, "Open-World": 4})
+            series_limits: Dict of series -> max count (e.g., {"Dark Souls": 2, "Fallout": 2})
+            
+        Returns:
+            Filtered DataFrame with diverse recommendations
+        """
+        # Sort by score to prioritize higher-scored games
+        df = df.sort_values('hybrid_score', ascending=False).copy()
+        
+        genre_limits = genre_limits or {}
+        tag_limits = tag_limits or {}
+        series_limits = series_limits or {}
+        
+        if not genre_limits and not tag_limits and not series_limits:
+            # No limits specified, return as-is
+            return df
+        
+        # Track counts per genre/tag/series
+        genre_counts = {}
+        tag_counts = {}
+        series_counts = {}
+        diverse_indices = []
+        
+        logger.info(f"  Applying diversity filters:")
+        logger.info(f"    Genre limits: {genre_limits}")
+        logger.info(f"    Tag limits: {tag_limits}")
+        logger.info(f"    Series limits: {series_limits}")
+        
+        for idx, row in df.iterrows():
+            include_game = True
+            
+            # Check genre limits (check ALL genres, not just primary)
+            if genre_limits:
+                for genre in row['genre_list']:
+                    if genre in genre_limits:
+                        limit = genre_limits[genre]
+                        current_count = genre_counts.get(genre, 0)
+                        if current_count >= limit:
+                            logger.debug(f"    Skipping '{row['name']}' - {genre} limit reached ({current_count}/{limit})")
+                            include_game = False
+                            break
+            
+            # Check tag limits
+            if include_game and tag_limits:
+                game_tags_raw = row['tags_dict']
+                if isinstance(game_tags_raw, dict):
+                    game_tags = list(game_tags_raw.keys())
+                elif isinstance(game_tags_raw, list):
+                    game_tags = game_tags_raw
+                else:
+                    game_tags = []
+                
+                for tag in game_tags:
+                    if tag in tag_limits:
+                        limit = tag_limits[tag]
+                        current_count = tag_counts.get(tag, 0)
+                        if current_count >= limit:
+                            logger.debug(f"    Skipping '{row['name']}' - {tag} tag limit reached ({current_count}/{limit})")
+                            include_game = False
+                            break
+            
+            # Check series limits (fuzzy match game name with series names)
+            if include_game and series_limits:
+                game_name = str(row['name']).lower()
+                for series_name, limit in series_limits.items():
+                    # Check if series name is in the game name (case-insensitive)
+                    if series_name.lower() in game_name:
+                        current_count = series_counts.get(series_name, 0)
+                        if current_count >= limit:
+                            logger.debug(f"    Skipping '{row['name']}' - {series_name} series limit reached ({current_count}/{limit})")
+                            include_game = False
+                            break
+            
+            if include_game:
+                diverse_indices.append(idx)
+                
+                # Update genre counts
+                for genre in row['genre_list']:
+                    if genre in genre_limits:
+                        genre_counts[genre] = genre_counts.get(genre, 0) + 1
+                
+                # Update tag counts
+                game_tags_raw = row['tags_dict']
+                if isinstance(game_tags_raw, dict):
+                    game_tags = list(game_tags_raw.keys())
+                elif isinstance(game_tags_raw, list):
+                    game_tags = game_tags_raw
+                else:
+                    game_tags = []
+                
+                for tag in game_tags:
+                    if tag in tag_limits:
+                        tag_counts[tag] = tag_counts.get(tag, 0) + 1
+                
+                # Update series counts
+                game_name = str(row['name']).lower()
+                for series_name in series_limits.keys():
+                    if series_name.lower() in game_name:
+                        series_counts[series_name] = series_counts.get(series_name, 0) + 1
+        
+        filtered = df.loc[diverse_indices]
+        
+        logger.info(f"  Diversity filtering: {len(df)} → {len(filtered)} games")
+        logger.info(f"    Final genre counts: {genre_counts}")
+        logger.info(f"    Final tag counts: {tag_counts}")
+        logger.info(f"    Final series counts: {series_counts}")
+        
+        return filtered
+    
     def explain_recommendation(
         self,
         appid: int,
@@ -864,7 +1064,8 @@ class HybridRecommender:
         # Calculate individual scores
         content_score = calculate_content_score(game, user_tag_profile, user_genre_profile)
         preference_score = calculate_preference_score(
-            game, disliked_tag_profile, disliked_genre_profile
+            game, user_tag_profile, user_genre_profile,
+            disliked_tag_profile, disliked_genre_profile
         )
         review_score = calculate_review_score(game)
         ml_score = 50.0  # Placeholder

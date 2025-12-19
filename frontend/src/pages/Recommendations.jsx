@@ -25,6 +25,13 @@ function Recommendations() {
     dislike_genres: '',
     hard_exclude_tags: '',
     hard_exclude_genres: '',
+    genre_limits: [],
+    tag_limits: [],
+    series_limits: [],
+    weight_ml: null,
+    weight_content: null,
+    weight_preference: null,
+    weight_review: null,
   })
   const [tempFilters, setTempFilters] = useState(filters)
   const [showFilters, setShowFilters] = useState(false)
@@ -37,13 +44,52 @@ function Recommendations() {
   const fetchRecommendations = async () => {
     setIsLoading(true)
     try {
-      // Filter out null, undefined, and empty string values from params
-      const params = Object.entries(filters).reduce((acc, [key, value]) => {
+      // Convert genre_limits and tag_limits arrays to JSON
+      const params = {}
+      
+      Object.entries(filters).forEach(([key, value]) => {
         if (value !== null && value !== undefined && value !== '') {
-          acc[key] = value
+          if (key === 'genre_limits' && Array.isArray(value) && value.length > 0) {
+            // Convert array of {genre, limit} to {genre: limit} object
+            const genreObj = {}
+            value.forEach(item => {
+              if (item.genre && item.genre.trim() !== '') {
+                genreObj[item.genre.trim()] = item.limit
+              }
+            })
+            if (Object.keys(genreObj).length > 0) {
+              params.genre_limits = JSON.stringify(genreObj)
+            }
+          } else if (key === 'tag_limits' && Array.isArray(value) && value.length > 0) {
+            // Convert array of {tag, limit} to {tag: limit} object
+            const tagObj = {}
+            value.forEach(item => {
+              if (item.tag && item.tag.trim() !== '') {
+                tagObj[item.tag.trim()] = item.limit
+              }
+            })
+            if (Object.keys(tagObj).length > 0) {
+              params.tag_limits = JSON.stringify(tagObj)
+            }
+          } else if (key === 'series_limits' && Array.isArray(value) && value.length > 0) {
+            // Convert array of {series, limit} to {series: limit} object
+            const seriesObj = {}
+            value.forEach(item => {
+              if (item.series && item.series.trim() !== '') {
+                seriesObj[item.series.trim()] = item.limit
+              }
+            })
+            if (Object.keys(seriesObj).length > 0) {
+              params.series_limits = JSON.stringify(seriesObj)
+            }
+          } else if (key === 'weight_ml' || key === 'weight_content' || key === 'weight_preference' || key === 'weight_review') {
+            // Convert percentage to decimal (35 -> 0.35)
+            params[key] = value / 100
+          } else {
+            params[key] = value
+          }
         }
-        return acc
-      }, {})
+      })
 
       const response = await api.recommendations.get(steamId, params)
       // Backend returns array directly, not wrapped in {recommendations: []}
