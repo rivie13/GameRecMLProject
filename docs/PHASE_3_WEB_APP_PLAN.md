@@ -212,16 +212,21 @@ These are the SAME visualizations already working in your notebooks:
 - Great for "how it works" explanation!
 - Libraries: Recharts
 
-**Chart 7 (FUTURE): Tag Cloud** (Word Cloud)
+**Chart 7: Release Year Timeline** (Scatter Plot)
+- X-axis: Release year (2000-2025)
+- Y-axis: Your playtime (hours)
+- Point size: Engagement score
+- Color: Genre or playtime category
+- Shows if you prefer new releases vs classics
+- **Note**: ~9k of 80k games have release date data (11%)
+- Only display games with release dates (filter out nulls)
+- Already have data from: `src/data_retrieval/get_release_dates.py`
+- Libraries: Recharts
+
+**Chart 8 (FUTURE): Tag Cloud** (Word Cloud)
 - Size = playtime-weighted tag importance
 - Optional enhancement (requires react-wordcloud library)
 - Can add later if time permits
-
-**Note on Release Year**: 
-- ❌ Release year data NOT available in current dataset
-- Many games missing release dates (especially Early Access)
-- Would require additional API calls to Steam Store API
-- **Decision**: Skip release year chart for MVP, add in Phase 4
 
 #### 3. **Your Gaming Profile** (Text Summary)
 - "You love [genres] games with [tags]"
@@ -266,6 +271,14 @@ These are the SAME visualizations already working in your notebooks:
     - Example: Sports, Racing, Horror
   - Exclude tags (multiselect)
     - Example: Survival Horror, Battle Royale, Card Game
+  
+  **Release Year Filter** (Optional):
+  - Enable filter (toggle)
+  - Year range slider (2000 - 2025)
+    - Example: Only show games from 2015-2023
+  - **Note**: Only ~11% of games have release date data
+  - Games without release dates will be INCLUDED unless filter is enabled
+  - Applied AFTER scoring (hard filter, not a weight)
   
   **Weight Tuning** (Advanced Users Only):
   - ML weight (slider: 0-100%)
@@ -380,6 +393,7 @@ CREATE TABLE feedback (
 CREATE TABLE catalog_cache (
     appid INTEGER PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
+    release_year INTEGER,  -- NULL if not available (~89% of games)
     metadata JSONB,  -- Store all game metadata as JSON
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -408,7 +422,8 @@ POST   /api/profile/{steam_id}/sync     # Sync library from Steam
 ```
 GET    /api/recommendations/{steam_id}?mode=hybrid&limit=20
        # Get recommendations
-       # Query params: mode, limit, min_reviews, min_score, price_max, etc.
+       # Query params: mode, limit, min_reviews, min_score, price_max, 
+       #               release_year_min, release_year_max, etc.
 
 GET    /api/recommendations/{steam_id}/explain/{appid}
        # Get detailed explanation for why a game was recommended
@@ -495,7 +510,8 @@ GameRecMLProject/
 │   │   │   ├── GenreCountBar.js           # Chart 3: Genres by count
 │   │   │   ├── GenrePlaytimeBar.js        # Chart 4: Genres by playtime
 │   │   │   ├── EngagementScatter.js       # Chart 5: Engagement vs playtime
-│   │   │   └── FeatureImportanceBar.js    # Chart 6: ML feature importance (optional)
+│   │   │   ├── FeatureImportanceBar.js    # Chart 6: ML feature importance (optional)
+│   │   │   └── ReleaseYearTimeline.js     # Chart 7: Release year timeline (optional)
 │   │   │
 │   │   ├── api/
 │   │   │   └── client.js        # Axios API client
@@ -585,6 +601,7 @@ GameRecMLProject/
   - Build genre distribution by playtime (Chart 4)
   - Build engagement score scatter plot (Chart 5)
   - (Optional) Build feature importance chart (Chart 6)
+  - (Optional) Build release year timeline (Chart 7)
   - Connect all charts to API data
   - Make charts interactive (hover, click)
 
@@ -784,7 +801,6 @@ These features are **Phase 4+** and should NOT be in MVP:
 - ❌ Collaborative filtering (need 100+ users first)
 - ❌ Social features (compare with friends)
 - ❌ Price tracking and sale notifications
-- ❌ **Release year timeline chart** (data not available, would require additional API calls)
 - ❌ Multi-language support
 - ❌ Mobile app (native iOS/Android)
 - ❌ Integration with other platforms (Epic, GOG)
@@ -843,25 +859,37 @@ These features are **Phase 4+** and should NOT be in MVP:
 
 ---
 
-## 📅 Future Enhancement: Release Year Data
+## 📅 Release Year Data: Implementation Notes
 
-**Why it's not in MVP**:
-- Steam Store API doesn't always include release dates in app details
-- Many games (especially Early Access) have missing/incomplete release dates
-- Would require 80k+ additional API calls to fill gaps
-- Not critical for recommendation quality
+**Current Status**: ✅ Collected release dates for ~9k games (11% of catalog)
 
-**How to add it later (Phase 4)**:
-1. Fetch release dates from Steam Store API: `https://store.steampowered.com/api/appdetails?appids={appid}`
-2. Parse `release_date.date` field (format varies: "Dec 18, 2025" or "Coming soon")
-3. Store in catalog_cache table (JSONB metadata column)
-4. Add timeline visualization showing:
-   - X-axis: Release year (2000-2025)
-   - Y-axis: Your playtime
-   - Point size: Engagement score
-   - Shows if you prefer new releases vs classics
+**Data Source**: Steam Store API via `src/data_retrieval/get_release_dates.py`
 
-**Estimated effort**: 1-2 days for data collection + 1 day for visualization
+**Handling Missing Data**:
+- ~89% of games still lack release dates (Early Access, delisted games, API limitations)
+- **Timeline Visualization**: Only show games WITH release dates (filter nulls)
+- **Release Year Filter**: When disabled (default), include ALL games regardless of release date
+- **When enabled**: Only show games within the specified year range that HAVE release dates
+- Users see a note: "Note: Only 11% of games have release date data. Games without dates may be excluded when using this filter."
+
+**Future Improvements (Phase 4+)**:
+- Background job to periodically fetch more release dates
+- Manual override/correction system for inaccurate dates
+- Use alternate data sources (IGDB, SteamDB) to fill gaps
+
+**Filter Logic**:
+```python
+# Pseudo-code for release year filter
+if release_year_filter_enabled:
+    recommendations = recommendations.filter(
+        release_year >= year_min AND 
+        release_year <= year_max AND
+        release_year IS NOT NULL
+    )
+else:
+    # Include all games, even those without release dates
+    recommendations = recommendations
+```
 
 ---
 
