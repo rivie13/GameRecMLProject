@@ -184,13 +184,39 @@ class CatalogCacheResponse(CatalogCacheBase):
 # Profile & Stats Schemas
 # ============================================================
 
+class ProfileResponse(BaseModel):
+    """Schema for user profile response."""
+    steam_id: int
+    username: str
+    profile_url: Optional[str] = None
+    avatar_url: Optional[str] = None
+    created_at: datetime
+    last_sync: Optional[datetime] = None
+    total_games: int
+    total_playtime_hours: float
+    settings: Dict[str, Any] = {}
+
+
 class ProfileStatsResponse(BaseModel):
     """Schema for user profile statistics."""
+    steam_id: int
     total_games: int
-    total_hours: float
-    top_genre: Optional[str] = None
-    gaming_style: Optional[str] = None
-    playtime_distribution: Dict[str, int]  # {'loved': 10, 'played': 50, 'tried': 100, 'unplayed': 50}
+    total_playtime_hours: float
+    playtime_distribution: Dict[str, int]  # {'loved_50plus': 10, 'played_10_50': 50, 'tried_under10': 100, 'unplayed': 50}
+    top_10_games: list[Dict[str, Any]]
+
+
+class SyncRequest(BaseModel):
+    """Schema for library sync request."""
+    pass  # No body needed, just POST to endpoint
+
+
+class SyncResponse(BaseModel):
+    """Schema for library sync response."""
+    success: bool
+    synced_count: int
+    synced_at: datetime
+    message: str
 
 
 class VisualizationDataResponse(BaseModel):

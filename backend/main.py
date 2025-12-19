@@ -107,15 +107,15 @@ async def health_check(db: Session = Depends(get_db)):
 # Include Routers
 # ============================================================
 
-from routers import auth
+from routers import auth, profile, recommendations
 
-# Register authentication router
+# Register routers
 app.include_router(auth.router)
+app.include_router(profile.router)
+app.include_router(recommendations.router)
 
-# Will add more routers in Day 5-7:
-# from routers import profile, recommendations, feedback
-# app.include_router(profile.router)
-# app.include_router(recommendations.router)
+# Will add feedback router in Phase 4:
+# from routers import feedback
 # app.include_router(feedback.router)
 
 
