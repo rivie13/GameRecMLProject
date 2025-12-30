@@ -4,7 +4,7 @@ import toast from 'react-hot-toast'
 // Create axios instance with base configuration
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
-  timeout: 30000,
+  timeout: 60000, // Increased to 60 seconds for ML predictions
   headers: {
     'Content-Type': 'application/json',
   },

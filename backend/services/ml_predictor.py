@@ -22,9 +22,9 @@ logger = logging.getLogger(__name__)
 
 # Model paths
 MODELS_DIR = Path(__file__).parent.parent.parent / "models"
-MODEL_PATH = MODELS_DIR / "random_forest_enhanced.pkl"
-SCALER_PATH = MODELS_DIR / "feature_scaler_enhanced.pkl"
-FEATURE_NAMES_PATH = MODELS_DIR / "feature_names_enhanced.pkl"
+MODEL_PATH = MODELS_DIR / "rf_engagement_model_multi_user.pkl"
+SCALER_PATH = MODELS_DIR / "scaler_multi_user.pkl"
+FEATURE_NAMES_PATH = MODELS_DIR / "feature_names_multi_user.pkl"
 
 
 class MLPredictor:
@@ -93,10 +93,12 @@ class MLPredictor:
             # Build ALL features using vectorized operations (like X_test in notebook)
             features_df = self._build_features_vectorized(games_df, owned_games_df)
             
-            # Ensure we have all required features (fill missing with 0)
-            for feat in self.feature_names:
-                if feat not in features_df.columns:
-                    features_df[feat] = 0.0
+            # Ensure we have all required features (fill missing with 0) - efficient way
+            missing_features = set(self.feature_names) - set(features_df.columns)
+            if missing_features:
+                # Add all missing columns at once to avoid fragmentation
+                missing_df = pd.DataFrame(0.0, index=features_df.index, columns=list(missing_features))
+                features_df = pd.concat([features_df, missing_df], axis=1)
             
             # Select features in the EXACT order the model expects
             features_df = features_df[self.feature_names]
@@ -107,8 +109,9 @@ class MLPredictor:
             # ONE batch prediction for ALL games (just like model.predict(X_test_scaled))
             predictions = self.model.predict(features_scaled)
             
-            # Convert to 0-100 scale and clip
-            scores = np.clip(predictions * 100, 0, 100)
+            # Model predicts engagement scores directly in 0-100 range (NOT 0-1!)
+            # Just clip to ensure valid range
+            scores = np.clip(predictions, 0, 100)
             
             return pd.Series(scores, index=games_df.index)
             
@@ -158,11 +161,11 @@ class MLPredictor:
             # Convert back to DataFrame with feature names to avoid sklearn warning
             features_scaled_df = pd.DataFrame(features_scaled, columns=self.feature_names)
             
-            # Predict (model returns 0-1 scale)
+            # Predict (model returns 0-100 scale directly, NOT 0-1!)
             prediction = self.model.predict(features_scaled_df)[0]
             
-            # Convert to 0-100 and clip
-            score = np.clip(prediction * 100, 0, 100)
+            # Just clip to ensure valid range (no need to multiply by 100)
+            score = np.clip(prediction, 0, 100)
                         # Debug: log if score seems suspicious
             if score >= 99.9 or score <= 0.1:
                 logger.debug(f"Unusual ML score {score:.1f} for game {game_row.get('name', 'unknown')}")
@@ -180,46 +183,62 @@ class MLPredictor:
         
         This matches the notebook approach: build full feature matrix then predict in ONE batch.
         """
-        # Start with vectorized numeric features
-        result_df = pd.DataFrame(index=games_df.index)
-        
         # === USER FEATURES (constant for all games) ===
         user_features = self._build_user_features(owned_games_df)
-        for feat_name, value in user_features.items():
-            result_df[feat_name] = value
         
-        # === GAME FEATURES (vectorized) ===
-        result_df['game_price'] = games_df['price'].fillna(0) / 100.0
-        result_df['game_positive_reviews'] = games_df['positive'].fillna(0).astype(int)
-        result_df['game_negative_reviews'] = games_df['negative'].fillna(0).astype(int)
-        result_df['game_total_reviews'] = result_df['game_positive_reviews'] + result_df['game_negative_reviews']
+        # === GAME FEATURES (vectorized numeric) ===
+        game_features = pd.DataFrame(index=games_df.index)
+        game_features['game_price'] = games_df['price'].fillna(0) / 100.0
+        game_features['game_positive_reviews'] = games_df['positive'].fillna(0).astype(int)
+        game_features['game_negative_reviews'] = games_df['negative'].fillna(0).astype(int)
+        game_features['game_total_reviews'] = game_features['game_positive_reviews'] + game_features['game_negative_reviews']
         
         # Review score (avoid division by zero)
-        result_df['game_review_score'] = result_df['game_positive_reviews'] / result_df['game_total_reviews']
-        result_df['game_review_score'] = result_df['game_review_score'].fillna(0.5)
+        game_features['game_review_score'] = game_features['game_positive_reviews'] / game_features['game_total_reviews']
+        game_features['game_review_score'] = game_features['game_review_score'].fillna(0.5)
         
-        result_df['game_median_playtime'] = games_df['median_forever'].fillna(0).astype(float)
+        game_features['game_median_playtime'] = games_df['median_forever'].fillna(0).astype(float)
         
-        # === GENRE/TAG FEATURES (optimized loop - unavoidable for sparse multi-hot encoding) ===
-        # This IS similar to the notebook - genres/tags need iteration for multi-hot encoding
+        # === GENRE/TAG FEATURES (collect all unique first, then build matrix efficiently) ===
+        # Step 1: Collect all unique genres/tags from this batch
+        all_genre_features = set()
+        all_tag_features = set()
+        genre_data = {}  # {idx: set of genre feature names}
+        tag_data = {}    # {idx: set of tag feature names}
+        
         for idx, row in games_df.iterrows():
-            # Genres
+            # Collect genres
             if 'genre' in row and pd.notna(row['genre']):
                 genres = parse_genre(row['genre'])
-                for genre in genres:
-                    feat_name = f"game_genre_{genre.replace(' ', '_').replace('-', '_').lower()}"
-                    if feat_name not in result_df.columns:
-                        result_df[feat_name] = 0.0
-                    result_df.loc[idx, feat_name] = 1.0 # type: ignore
+                genre_feats = {f"game_genre_{g.replace(' ', '_').replace('-', '_').lower()}" for g in genres}
+                genre_data[idx] = genre_feats
+                all_genre_features.update(genre_feats)
             
-            # Tags
+            # Collect tags
             if 'tags' in row and pd.notna(row['tags']):
                 tags_dict = parse_tags(row['tags'])
-                for tag in list(tags_dict.keys())[:100]:
-                    feat_name = f"game_tag_{tag.replace(' ', '_').replace('-', '_').lower()}"
-                    if feat_name not in result_df.columns:
-                        result_df[feat_name] = 0.0
-                    result_df.loc[idx, feat_name] = 1.0 # type: ignore
+                tag_feats = {f"game_tag_{t.replace(' ', '_').replace('-', '_').lower()}" for t in list(tags_dict.keys())[:100]}
+                tag_data[idx] = tag_feats
+                all_tag_features.update(tag_feats)
+        
+        # Step 2: Create genre/tag matrices efficiently (all columns at once)
+        genre_matrix = pd.DataFrame(0.0, index=games_df.index, columns=sorted(all_genre_features))
+        tag_matrix = pd.DataFrame(0.0, index=games_df.index, columns=sorted(all_tag_features))
+        
+        # Step 3: Fill in the 1s where genres/tags exist
+        for idx, genre_feats in genre_data.items():
+            genre_matrix.loc[idx, list(genre_feats)] = 1.0
+        
+        for idx, tag_feats in tag_data.items():
+            tag_matrix.loc[idx, list(tag_feats)] = 1.0
+        
+        # === COMBINE ALL: user features (constant) + game numeric + genres + tags ===
+        # Add user features as constant columns
+        for feat_name, value in user_features.items():
+            game_features[feat_name] = value
+        
+        # Combine all at once using concat
+        result_df = pd.concat([game_features, genre_matrix, tag_matrix], axis=1)
         
         return result_df
     
